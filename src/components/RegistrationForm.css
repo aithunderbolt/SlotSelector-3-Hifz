@@ -36,7 +36,8 @@ label {
 }
 
 input,
-select {
+select,
+textarea {
   width: 100%;
   padding: 12px;
   border: 2px solid #e0e0e0;
@@ -44,18 +45,26 @@ select {
   font-size: 16px;
   transition: border-color 0.3s;
   box-sizing: border-box;
+  font-family: inherit;
 }
 
 input:focus,
-select:focus {
+select:focus,
+textarea:focus {
   outline: none;
   border-color: #667eea;
 }
 
 input:disabled,
-select:disabled {
+select:disabled,
+textarea:disabled {
   background-color: #f5f5f5;
   cursor: not-allowed;
+}
+
+textarea {
+  resize: vertical;
+  min-height: 80px;
 }
 
 .radio-group {

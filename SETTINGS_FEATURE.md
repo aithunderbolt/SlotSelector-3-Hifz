@@ -9,7 +9,7 @@ Added a new Settings management feature that allows super admins to customize th
 - **File:** `create-settings-table.sql`
 - Creates a new `settings` table to store application configuration
 - Includes RLS policies for secure access
-- Pre-populates with default form title: "Tilawah Registration Form"
+- Pre-populates with default form title: "Hifz Registration Form"
 
 ### 2. Settings Component
 - **Files:** `src/components/Settings.jsx` and `src/components/Settings.css`

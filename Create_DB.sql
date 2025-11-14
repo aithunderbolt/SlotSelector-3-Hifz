@@ -150,7 +150,7 @@ CREATE POLICY "Enable insert for all users" ON settings
 
 -- Insert default settings
 INSERT INTO settings (key, value) 
-VALUES ('form_title', 'Tilawah Registration Form')
+VALUES ('form_title', 'Hifz Registration Form')
 ON CONFLICT (key) DO NOTHING;
 
 INSERT INTO settings (key, value) 

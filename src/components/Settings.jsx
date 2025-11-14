@@ -27,7 +27,7 @@ const Settings = () => {
       const titleSetting = settings.find(s => s.key === 'form_title');
       const maxRegSetting = settings.find(s => s.key === 'max_registrations_per_slot');
       
-      setFormTitle(titleSetting?.value || 'Tilawah Registration Form');
+      setFormTitle(titleSetting?.value || 'Hifz Registration Form');
       setMaxRegistrations(maxRegSetting?.value || '15');
     } catch (err) {
       console.error('Error fetching settings:', err);

@@ -12,10 +12,13 @@ const RegistrationForm = () => {
     fathers_name: '',
     date_of_birth: '',
     tajweed_level: '',
+    education: '',
+    profession: '',
+    previous_hifz: '',
   });
   const [submitting, setSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState(null);
-  const [formTitle, setFormTitle] = useState('Tilawah Registration Form');
+  const [formTitle, setFormTitle] = useState('Hifz Registration Form');
   const { availableSlots, loading, error, refetch } = useSlotAvailability();
 
   useEffect(() => {
@@ -95,6 +98,15 @@ const RegistrationForm = () => {
     if (!formData.tajweed_level) {
       return 'Please select your Tajweed level';
     }
+    if (!formData.education.trim()) {
+      return 'Education is required';
+    }
+    if (!formData.profession.trim()) {
+      return 'Profession is required';
+    }
+    if (!formData.previous_hifz.trim()) {
+      return 'Previous Hifz information is required';
+    }
     if (!formData.slot_id) {
       return 'Please select a time slot';
     }
@@ -153,6 +165,9 @@ const RegistrationForm = () => {
         fathers_name: '',
         date_of_birth: '',
         tajweed_level: '',
+        education: '',
+        profession: '',
+        previous_hifz: '',
       });
       refetch();
     } catch (err) {
@@ -279,6 +294,45 @@ const RegistrationForm = () => {
               <option value="Intermediate">Intermediate</option>
               <option value="Advanced">Advanced</option>
             </select>
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="education">Education *</label>
+            <input
+              type="text"
+              id="education"
+              name="education"
+              value={formData.education}
+              onChange={handleChange}
+              required
+              disabled={submitting}
+            />
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="profession">Profession *</label>
+            <input
+              type="text"
+              id="profession"
+              name="profession"
+              value={formData.profession}
+              onChange={handleChange}
+              required
+              disabled={submitting}
+            />
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="previous_hifz">Previous Hifz, if any *</label>
+            <textarea
+              id="previous_hifz"
+              name="previous_hifz"
+              value={formData.previous_hifz}
+              onChange={handleChange}
+              required
+              disabled={submitting}
+              rows="3"
+            />
           </div>
 
           <div className="form-group">
