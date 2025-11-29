@@ -39,15 +39,13 @@ const AdminDashboard = ({ onLogout, user }) => {
       if (isSlotAdmin) {
         detailedRegistrations = await pb.collection('registrations').getFullList({
           filter: `slot_id = "${userSlotId}"`,
-          sort: '-created',
-          expand: 'slot_id',
         });
       } else {
-        detailedRegistrations = await pb.collection('registrations').getFullList({
-          sort: '-created',
-          expand: 'slot_id',
-        });
+        detailedRegistrations = await pb.collection('registrations').getFullList();
       }
+      
+      // Sort by created date (newest first) - PocketBase returns records with created field
+      detailedRegistrations.sort((a, b) => new Date(b.created) - new Date(a.created));
       
       // For slot admins, use all registrations for counts but filtered data for table
       setRegistrations(isSlotAdmin ? { detailed: detailedRegistrations, all: allRegistrations } : detailedRegistrations);
