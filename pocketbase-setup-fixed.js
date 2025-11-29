@@ -7,10 +7,13 @@
  */
 
 import PocketBase from 'pocketbase';
+import dotenv from 'dotenv';
 
-const POCKETBASE_URL = 'https://pb.likzet.com';
-const ADMIN_EMAIL = 'stealthprisms3@gmail.com';
-const ADMIN_PASSWORD = 'Stealth123#';
+dotenv.config();
+
+const POCKETBASE_URL = process.env.VITE_POCKETBASE_URL;
+const ADMIN_EMAIL = process.env.POCKETBASE_ADMIN_EMAIL;
+const ADMIN_PASSWORD = process.env.POCKETBASE_ADMIN_PASSWORD;
 
 const pb = new PocketBase(POCKETBASE_URL);
 
