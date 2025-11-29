@@ -27,3 +27,7 @@ dist-ssr
 .env
 .env.local
 .env.production
+
+pocketbase-setup.js
+
+pocketbase-seed.js

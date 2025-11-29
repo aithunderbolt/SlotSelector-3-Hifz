@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '../lib/supabaseClient';
+import { pb } from '../lib/supabaseClient';
 import { useSlotAvailability } from '../hooks/useSlotAvailability';
 import './RegistrationForm.css';
 
@@ -24,14 +24,12 @@ const RegistrationForm = () => {
   useEffect(() => {
     const fetchFormTitle = async () => {
       try {
-        const { data, error } = await supabase
-          .from('settings')
-          .select('value')
-          .eq('key', 'form_title')
-          .single();
+        const settings = await pb.collection('settings').getFullList({
+          filter: 'key = "form_title"',
+        });
 
-        if (data && !error) {
-          setFormTitle(data.value);
+        if (settings && settings.length > 0) {
+          setFormTitle(settings[0].value);
         }
       } catch (err) {
         console.error('Error fetching form title:', err);
@@ -41,21 +39,14 @@ const RegistrationForm = () => {
     fetchFormTitle();
 
     // Subscribe to settings changes
-    const settingsChannel = supabase
-      .channel('form-settings')
-      .on(
-        'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'settings', filter: 'key=eq.form_title' },
-        (payload) => {
-          if (payload.new?.value) {
-            setFormTitle(payload.new.value);
-          }
-        }
-      )
-      .subscribe();
+    pb.collection('settings').subscribe('*', (e) => {
+      if (e.record.key === 'form_title') {
+        setFormTitle(e.record.value);
+      }
+    });
 
     return () => {
-      supabase.removeChannel(settingsChannel);
+      pb.collection('settings').unsubscribe();
     };
   }, []);
 
@@ -127,17 +118,11 @@ const RegistrationForm = () => {
 
     try {
       // Check if WhatsApp number already exists
-      const { data: existingRegistration, error: checkError } = await supabase
-        .from('registrations')
-        .select('whatsapp_mobile')
-        .eq('whatsapp_mobile', formData.whatsapp_mobile)
-        .single();
+      const existingRegistrations = await pb.collection('registrations').getFullList({
+        filter: `whatsapp_mobile = "${formData.whatsapp_mobile}"`,
+      });
 
-      if (checkError && checkError.code !== 'PGRST116') {
-        throw checkError;
-      }
-
-      if (existingRegistration) {
+      if (existingRegistrations && existingRegistrations.length > 0) {
         setSubmitStatus({
           type: 'error',
           message: 'This WhatsApp number is already registered.',
@@ -146,11 +131,7 @@ const RegistrationForm = () => {
         return;
       }
 
-      const { error } = await supabase
-        .from('registrations')
-        .insert([formData]);
-
-      if (error) throw error;
+      await pb.collection('registrations').create(formData);
 
       const selectedSlot = availableSlots.find(slot => slot.id === formData.slot_id);
       setSubmitStatus({

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { supabase } from '../lib/supabaseClient';
+import { pb } from '../lib/supabaseClient';
 import './AdminLogin.css';
 
 const AdminLogin = ({ onLogin }) => {
@@ -16,20 +16,17 @@ const AdminLogin = ({ onLogin }) => {
     setError('');
 
     try {
-      const { data, error } = await supabase
-        .from('users')
-        .select('*')
-        .eq('username', credentials.username)
-        .eq('password', credentials.password)
-        .single();
+      const users = await pb.collection('users').getFullList({
+        filter: `username = "${credentials.username}" && password = "${credentials.password}"`,
+      });
 
-      if (error || !data) {
+      if (!users || users.length === 0) {
         setError('Invalid username or password');
         setLoading(false);
         return;
       }
 
-      onLogin(data);
+      onLogin(users[0]);
       setError('');
     } catch (err) {
       setError('Invalid username or password');

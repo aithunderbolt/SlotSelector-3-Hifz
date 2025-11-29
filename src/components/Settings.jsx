@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '../lib/supabaseClient';
+import { pb } from '../lib/supabaseClient';
 import './Settings.css';
 
 const Settings = () => {
@@ -16,14 +16,10 @@ const Settings = () => {
   const fetchSettings = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from('settings')
-        .select('*')
-        .in('key', ['form_title', 'max_registrations_per_slot']);
+      const settings = await pb.collection('settings').getFullList({
+        filter: 'key = "form_title" || key = "max_registrations_per_slot"',
+      });
 
-      if (error && error.code !== 'PGRST116') throw error;
-      
-      const settings = data || [];
       const titleSetting = settings.find(s => s.key === 'form_title');
       const maxRegSetting = settings.find(s => s.key === 'max_registrations_per_slot');
       
@@ -60,27 +56,37 @@ const Settings = () => {
       setSaving(true);
       setMessage(null);
 
-      const { error: titleError } = await supabase
-        .from('settings')
-        .upsert({ 
-          key: 'form_title', 
-          value: formTitle.trim() 
-        }, {
-          onConflict: 'key'
+      // Check if form_title exists
+      const titleSettings = await pb.collection('settings').getFullList({
+        filter: 'key = "form_title"',
+      });
+
+      if (titleSettings.length > 0) {
+        await pb.collection('settings').update(titleSettings[0].id, {
+          value: formTitle.trim(),
         });
-
-      if (titleError) throw titleError;
-
-      const { error: maxRegError } = await supabase
-        .from('settings')
-        .upsert({ 
-          key: 'max_registrations_per_slot', 
-          value: maxRegNum.toString() 
-        }, {
-          onConflict: 'key'
+      } else {
+        await pb.collection('settings').create({
+          key: 'form_title',
+          value: formTitle.trim(),
         });
+      }
 
-      if (maxRegError) throw maxRegError;
+      // Check if max_registrations_per_slot exists
+      const maxRegSettings = await pb.collection('settings').getFullList({
+        filter: 'key = "max_registrations_per_slot"',
+      });
+
+      if (maxRegSettings.length > 0) {
+        await pb.collection('settings').update(maxRegSettings[0].id, {
+          value: maxRegNum.toString(),
+        });
+      } else {
+        await pb.collection('settings').create({
+          key: 'max_registrations_per_slot',
+          value: maxRegNum.toString(),
+        });
+      }
 
       setMessage({ type: 'success', text: 'Settings saved successfully!' });
     } catch (err) {

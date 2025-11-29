@@ -1,0 +1,235 @@
+{
+  "collections": [
+    {
+      "name": "slots",
+      "type": "base",
+      "schema": [
+        {
+          "name": "display_name",
+          "type": "text",
+          "required": true,
+          "options": {
+            "min": 1,
+            "max": 500
+          }
+        },
+        {
+          "name": "slot_order",
+          "type": "number",
+          "required": true,
+          "options": {
+            "min": 1
+          }
+        },
+        {
+          "name": "max_registrations",
+          "type": "number",
+          "required": false,
+          "options": {
+            "min": 1,
+            "max": 100
+          }
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_display_name ON slots (display_name)",
+        "CREATE UNIQUE INDEX idx_slot_order ON slots (slot_order)"
+      ],
+      "listRule": "",
+      "viewRule": "",
+      "createRule": null,
+      "updateRule": "",
+      "deleteRule": null
+    },
+    {
+      "name": "registrations",
+      "type": "base",
+      "schema": [
+        {
+          "name": "name",
+          "type": "text",
+          "required": true,
+          "options": {
+            "min": 1,
+            "max": 200
+          }
+        },
+        {
+          "name": "email",
+          "type": "email",
+          "required": true,
+          "options": {}
+        },
+        {
+          "name": "whatsapp_mobile",
+          "type": "text",
+          "required": true,
+          "options": {
+            "min": 10,
+            "max": 20
+          }
+        },
+        {
+          "name": "slot_id",
+          "type": "relation",
+          "required": true,
+          "options": {
+            "collectionId": "SLOTS_COLLECTION_ID",
+            "cascadeDelete": false,
+            "minSelect": null,
+            "maxSelect": 1,
+            "displayFields": ["display_name"]
+          }
+        },
+        {
+          "name": "fathers_name",
+          "type": "text",
+          "required": false,
+          "options": {
+            "max": 200
+          }
+        },
+        {
+          "name": "date_of_birth",
+          "type": "text",
+          "required": false,
+          "options": {
+            "max": 10
+          }
+        },
+        {
+          "name": "tajweed_level",
+          "type": "text",
+          "required": false,
+          "options": {
+            "max": 50
+          }
+        },
+        {
+          "name": "education",
+          "type": "text",
+          "required": false,
+          "options": {
+            "max": 200
+          }
+        },
+        {
+          "name": "profession",
+          "type": "text",
+          "required": false,
+          "options": {
+            "max": 200
+          }
+        },
+        {
+          "name": "previous_hifz",
+          "type": "text",
+          "required": false,
+          "options": {
+            "max": 1000
+          }
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_whatsapp ON registrations (whatsapp_mobile)"
+      ],
+      "listRule": "",
+      "viewRule": "",
+      "createRule": "",
+      "updateRule": null,
+      "deleteRule": null
+    },
+    {
+      "name": "users",
+      "type": "base",
+      "schema": [
+        {
+          "name": "name",
+          "type": "text",
+          "required": false,
+          "options": {
+            "max": 200
+          }
+        },
+        {
+          "name": "username",
+          "type": "text",
+          "required": true,
+          "options": {
+            "min": 3,
+            "max": 50
+          }
+        },
+        {
+          "name": "password",
+          "type": "text",
+          "required": true,
+          "options": {
+            "min": 6,
+            "max": 200
+          }
+        },
+        {
+          "name": "role",
+          "type": "select",
+          "required": true,
+          "options": {
+            "maxSelect": 1,
+            "values": ["super_admin", "slot_admin"]
+          }
+        },
+        {
+          "name": "assigned_slot_id",
+          "type": "relation",
+          "required": false,
+          "options": {
+            "collectionId": "SLOTS_COLLECTION_ID",
+            "cascadeDelete": false,
+            "minSelect": null,
+            "maxSelect": 1,
+            "displayFields": ["display_name"]
+          }
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_username ON users (username)"
+      ],
+      "listRule": "",
+      "viewRule": "",
+      "createRule": "",
+      "updateRule": "",
+      "deleteRule": ""
+    },
+    {
+      "name": "settings",
+      "type": "base",
+      "schema": [
+        {
+          "name": "key",
+          "type": "text",
+          "required": true,
+          "options": {
+            "min": 1,
+            "max": 100
+          }
+        },
+        {
+          "name": "value",
+          "type": "text",
+          "required": true,
+          "options": {
+            "max": 1000
+          }
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_key ON settings (key)"
+      ],
+      "listRule": "",
+      "viewRule": "",
+      "createRule": "",
+      "updateRule": "",
+      "deleteRule": null
+    }
+  ]
+}

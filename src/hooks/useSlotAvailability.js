@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '../lib/supabaseClient';
+import { pb } from '../lib/supabaseClient';
 
 export const useSlotAvailability = () => {
   const [availableSlots, setAvailableSlots] = useState([]);
@@ -12,20 +12,16 @@ export const useSlotAvailability = () => {
       setLoading(true);
       
       // Fetch all slots with their max_registrations
-      const { data: slotsData, error: slotsError } = await supabase
-        .from('slots')
-        .select('*')
-        .order('slot_order', { ascending: true });
+      const slotsData = await pb.collection('slots').getFullList({
+        sort: 'slot_order',
+      });
 
-      if (slotsError) throw slotsError;
       setAllSlots(slotsData);
 
       // Fetch registrations
-      const { data: registrationsData, error: registrationsError } = await supabase
-        .from('registrations')
-        .select('slot_id');
-
-      if (registrationsError) throw registrationsError;
+      const registrationsData = await pb.collection('registrations').getFullList({
+        fields: 'id,slot_id',
+      });
 
       // Count registrations per slot
       const slotCounts = {};
@@ -58,31 +54,19 @@ export const useSlotAvailability = () => {
   useEffect(() => {
     fetchSlotCounts();
 
-    const registrationsChannel = supabase
-      .channel('registrations-changes')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'registrations' },
-        () => {
-          fetchSlotCounts();
-        }
-      )
-      .subscribe();
+    // Subscribe to registrations changes
+    pb.collection('registrations').subscribe('*', () => {
+      fetchSlotCounts();
+    });
 
-    const slotsChannel = supabase
-      .channel('slots-changes')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'slots' },
-        () => {
-          fetchSlotCounts();
-        }
-      )
-      .subscribe();
+    // Subscribe to slots changes
+    pb.collection('slots').subscribe('*', () => {
+      fetchSlotCounts();
+    });
 
     return () => {
-      supabase.removeChannel(registrationsChannel);
-      supabase.removeChannel(slotsChannel);
+      pb.collection('registrations').unsubscribe();
+      pb.collection('slots').unsubscribe();
     };
   }, []);
 

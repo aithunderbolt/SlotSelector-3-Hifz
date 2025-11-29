@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '../lib/supabaseClient';
+import { pb } from '../lib/supabaseClient';
 import './SlotManagement.css';
 
 const SlotManagement = () => {
@@ -18,12 +18,10 @@ const SlotManagement = () => {
   const fetchSlots = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from('slots')
-        .select('*')
-        .order('slot_order', { ascending: true });
+      const data = await pb.collection('slots').getFullList({
+        sort: 'slot_order',
+      });
 
-      if (error) throw error;
       setSlots(data);
       setError(null);
     } catch (err) {
@@ -71,12 +69,10 @@ const SlotManagement = () => {
 
     try {
       // Check current registration count for this slot
-      const { data: registrations, error: countError } = await supabase
-        .from('registrations')
-        .select('id')
-        .eq('slot_id', slotId);
-
-      if (countError) throw countError;
+      const registrations = await pb.collection('registrations').getFullList({
+        filter: `slot_id = "${slotId}"`,
+        fields: 'id',
+      });
 
       const currentCount = registrations?.length || 0;
 
@@ -85,15 +81,10 @@ const SlotManagement = () => {
         return;
       }
 
-      const { error } = await supabase
-        .from('slots')
-        .update({ 
-          display_name: newName.trim(),
-          max_registrations: maxReg
-        })
-        .eq('id', slotId);
-
-      if (error) throw error;
+      await pb.collection('slots').update(slotId, {
+        display_name: newName.trim(),
+        max_registrations: maxReg,
+      });
 
       setEditingSlot(null);
       setNewName('');
@@ -131,17 +122,11 @@ const SlotManagement = () => {
     }
 
     try {
-      const { error } = await supabase
-        .from('slots')
-        .insert([
-          {
-            display_name: newSlotName.trim(),
-            slot_order: parseInt(newSlotOrder),
-            max_registrations: maxReg
-          }
-        ]);
-
-      if (error) throw error;
+      await pb.collection('slots').create({
+        display_name: newSlotName.trim(),
+        slot_order: parseInt(newSlotOrder),
+        max_registrations: maxReg,
+      });
 
       setShowAddForm(false);
       setNewSlotName('');
@@ -158,25 +143,18 @@ const SlotManagement = () => {
   const handleDeleteSlot = async (slotId) => {
     try {
       // Check if slot has any registrations
-      const { data: registrations, error: checkError } = await supabase
-        .from('registrations')
-        .select('id')
-        .eq('slot_id', slotId)
-        .limit(1);
-
-      if (checkError) throw checkError;
+      const registrations = await pb.collection('registrations').getFullList({
+        filter: `slot_id = "${slotId}"`,
+        fields: 'id',
+        $autoCancel: false,
+      });
 
       if (registrations && registrations.length > 0) {
         setError('Cannot delete slot with existing registrations');
         return;
       }
 
-      const { error } = await supabase
-        .from('slots')
-        .delete()
-        .eq('id', slotId);
-
-      if (error) throw error;
+      await pb.collection('slots').delete(slotId);
 
       setDeletingSlot(null);
       setError(null);

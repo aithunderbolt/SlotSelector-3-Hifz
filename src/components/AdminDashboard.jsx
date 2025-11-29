@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '../lib/supabaseClient';
+import { pb } from '../lib/supabaseClient';
 import * as XLSX from 'xlsx';
 import UserManagement from './UserManagement';
 import SlotManagement from './SlotManagement';
@@ -23,43 +23,34 @@ const AdminDashboard = ({ onLogout, user }) => {
       setLoading(true);
 
       // Fetch slots with their max_registrations
-      const { data: slotsData, error: slotsError } = await supabase
-        .from('slots')
-        .select('*')
-        .order('slot_order', { ascending: true });
+      const slotsData = await pb.collection('slots').getFullList({
+        sort: 'slot_order',
+      });
 
-      if (slotsError) throw slotsError;
       setSlots(slotsData);
 
       // Fetch all registrations for slot counts (both super admin and slot admin need this)
-      const { data: allRegistrations, error: allRegError } = await supabase
-        .from('registrations')
-        .select('id, slot_id');
+      const allRegistrations = await pb.collection('registrations').getFullList({
+        fields: 'id,slot_id',
+      });
 
-      if (allRegError) throw allRegError;
-
-      // Fetch detailed registrations with slot info
-      let query = supabase
-        .from('registrations')
-        .select(`
-          *,
-          slots (
-            id,
-            display_name
-          )
-        `)
-        .order('created_at', { ascending: false });
-
+      // Fetch detailed registrations
+      let detailedRegistrations;
       if (isSlotAdmin) {
-        query = query.eq('slot_id', userSlotId);
+        detailedRegistrations = await pb.collection('registrations').getFullList({
+          filter: `slot_id = "${userSlotId}"`,
+          sort: '-created',
+          expand: 'slot_id',
+        });
+      } else {
+        detailedRegistrations = await pb.collection('registrations').getFullList({
+          sort: '-created',
+          expand: 'slot_id',
+        });
       }
-
-      const { data, error } = await query;
-
-      if (error) throw error;
       
       // For slot admins, use all registrations for counts but filtered data for table
-      setRegistrations(isSlotAdmin ? { detailed: data, all: allRegistrations } : data);
+      setRegistrations(isSlotAdmin ? { detailed: detailedRegistrations, all: allRegistrations } : detailedRegistrations);
       setError(null);
     } catch (err) {
       setError(err.message);
@@ -72,31 +63,19 @@ const AdminDashboard = ({ onLogout, user }) => {
   useEffect(() => {
     fetchData();
 
-    const registrationsChannel = supabase
-      .channel('admin-registrations')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'registrations' },
-        () => {
-          fetchData();
-        }
-      )
-      .subscribe();
+    // Subscribe to registrations changes
+    pb.collection('registrations').subscribe('*', () => {
+      fetchData();
+    });
 
-    const slotsChannel = supabase
-      .channel('admin-slots')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'slots' },
-        () => {
-          fetchData();
-        }
-      )
-      .subscribe();
+    // Subscribe to slots changes
+    pb.collection('slots').subscribe('*', () => {
+      fetchData();
+    });
 
     return () => {
-      supabase.removeChannel(registrationsChannel);
-      supabase.removeChannel(slotsChannel);
+      pb.collection('registrations').unsubscribe();
+      pb.collection('slots').unsubscribe();
     };
   }, []);
 
@@ -152,8 +131,8 @@ const AdminDashboard = ({ onLogout, user }) => {
       Email: reg.email,
       'WhatsApp Mobile': reg.whatsapp_mobile,
       'Level of Tajweed': reg.tajweed_level || '',
-      'Time Slot': reg.slots?.display_name || getSlotDisplayName(reg.slot_id),
-      'Registered At': new Date(reg.created_at).toLocaleString(),
+      'Time Slot': reg.expand?.slot_id?.display_name || getSlotDisplayName(reg.slot_id),
+      'Registered At': new Date(reg.created).toLocaleString(),
     }));
 
     const worksheet = XLSX.utils.json_to_sheet(exportData);
@@ -326,8 +305,8 @@ const AdminDashboard = ({ onLogout, user }) => {
                   <td>{reg.email}</td>
                   <td>{reg.whatsapp_mobile}</td>
                   <td>{reg.tajweed_level || '-'}</td>
-                  <td><span className="slot-badge">{reg.slots?.display_name || getSlotDisplayName(reg.slot_id)}</span></td>
-                  <td>{new Date(reg.created_at).toLocaleString()}</td>
+                  <td><span className="slot-badge">{reg.expand?.slot_id?.display_name || getSlotDisplayName(reg.slot_id)}</span></td>
+                  <td>{new Date(reg.created).toLocaleString()}</td>
                 </tr>
               ))
             )}

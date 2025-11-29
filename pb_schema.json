@@ -1,0 +1,70 @@
+[
+  {
+    "id": "pbc_3987654321",
+    "name": "slots",
+    "type": "base",
+    "system": false,
+    "schema": [
+      {
+        "id": "text1234567",
+        "name": "display_name",
+        "type": "text",
+        "system": false,
+        "required": true,
+        "presentable": false,
+        "unique": false,
+        "options": {
+          "min": 1,
+          "max": 500,
+          "pattern": ""
+        }
+      },
+      {
+        "id": "number12345",
+        "name": "slot_order",
+        "type": "number",
+        "system": false,
+        "required": true,
+        "presentable": false,
+        "unique": false,
+        "options": {
+          "min": 1,
+          "max": null,
+          "noDecimal": true
+        }
+      },
+      {
+        "id": "number67890",
+        "name": "max_registrations",
+        "type": "number",
+        "system": false,
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": {
+          "min": 1,
+          "max": 100,
+          "noDecimal": true
+        }
+      }
+    ],
+    "indexes": [],
+    "listRule": "",
+    "viewRule": "",
+    "createRule": null,
+    "updateRule": "",
+    "deleteRule": null,
+    "options": {}
+  },
+  {
+    "id": "pbc_1234567890",
+    "name": "registrations",
+    "type": "base",
+    "system": false,
+    "schema": [
+      {
+        "id": "text_name01",
+        "name": "name",
+        "type": "text",
+        "system": false,
+        "required": true,

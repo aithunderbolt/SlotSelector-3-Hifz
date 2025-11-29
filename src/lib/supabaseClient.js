@@ -1,10 +1,12 @@
-import { createClient } from '@supabase/supabase-js';
+import PocketBase from 'pocketbase';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const pocketbaseUrl = import.meta.env.VITE_POCKETBASE_URL;
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error('Missing Supabase environment variables');
+if (!pocketbaseUrl) {
+  throw new Error('Missing PocketBase environment variable');
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export const pb = new PocketBase(pocketbaseUrl);
+
+// Disable auto cancellation for better compatibility
+pb.autoCancellation(false);
