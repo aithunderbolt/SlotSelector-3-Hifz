@@ -106,7 +106,7 @@ const RegistrationForm = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     const validationError = validateForm();
     if (validationError) {
       setSubmitStatus({ type: 'error', message: validationError });
@@ -160,8 +160,8 @@ const RegistrationForm = () => {
         message: err.message.includes('slot is full')
           ? 'This slot is now full. Please select another slot.'
           : err.message.includes('duplicate') || err.message.includes('unique')
-          ? 'This WhatsApp number is already registered.'
-          : 'Registration failed. Please try again.',
+            ? 'This WhatsApp number is already registered.'
+            : 'Registration failed. Please try again.',
       });
       refetch();
     } finally {
@@ -192,7 +192,7 @@ const RegistrationForm = () => {
     <div className="container">
       <div className="form-card">
         <h1>{formTitle}</h1>
-        
+
         <form onSubmit={handleSubmit}>
           <div className="form-group">
             <label htmlFor="name">Name *</label>
@@ -264,20 +264,53 @@ const RegistrationForm = () => {
           </div>
 
           <div className="form-group">
-            <label htmlFor="tajweed_level">Level of Tajweed *</label>
-            <select
-              id="tajweed_level"
-              name="tajweed_level"
-              value={formData.tajweed_level}
-              onChange={handleChange}
-              required
-              disabled={submitting}
-            >
-              <option value="">Select your level</option>
-              <option value="Beginner">Beginner</option>
-              <option value="Intermediate">Intermediate</option>
-              <option value="Advanced">Advanced</option>
-            </select>
+            <label>Level of Tajweed *</label>
+            <div className="radio-group">
+              <label className="radio-option">
+                <input
+                  type="radio"
+                  name="tajweed_level"
+                  value="Beginner"
+                  checked={formData.tajweed_level === 'Beginner'}
+                  onChange={handleChange}
+                  required
+                  disabled={submitting}
+                />
+                <span className="radio-label">
+                  Beginner <span style={{ color: '#666', fontSize: '0.9em' }}>- Half page a day</span>
+                </span>
+              </label>
+
+              <label className="radio-option">
+                <input
+                  type="radio"
+                  name="tajweed_level"
+                  value="Intermediate"
+                  checked={formData.tajweed_level === 'Intermediate'}
+                  onChange={handleChange}
+                  required
+                  disabled={submitting}
+                />
+                <span className="radio-label">
+                  Intermediate <span style={{ color: '#666', fontSize: '0.9em' }}>- Half page a day</span>
+                </span>
+              </label>
+
+              <label className="radio-option">
+                <input
+                  type="radio"
+                  name="tajweed_level"
+                  value="Advanced"
+                  checked={formData.tajweed_level === 'Advanced'}
+                  onChange={handleChange}
+                  required
+                  disabled={submitting}
+                />
+                <span className="radio-label">
+                  Advanced <span style={{ color: '#666', fontSize: '0.9em' }}>- One page a day</span>
+                </span>
+              </label>
+            </div>
           </div>
 
           <div className="form-group">
