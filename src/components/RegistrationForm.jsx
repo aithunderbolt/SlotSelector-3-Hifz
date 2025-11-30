@@ -131,7 +131,10 @@ const RegistrationForm = () => {
         return;
       }
 
-      await pb.collection('registrations').create(formData);
+      await pb.collection('registrations').create({
+        ...formData,
+        registered_at: new Date().toISOString(),
+      });
 
       const selectedSlot = availableSlots.find(slot => slot.id === formData.slot_id);
       setSubmitStatus({

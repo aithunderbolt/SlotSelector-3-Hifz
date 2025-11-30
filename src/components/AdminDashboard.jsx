@@ -39,13 +39,20 @@ const AdminDashboard = ({ onLogout, user }) => {
       if (isSlotAdmin) {
         detailedRegistrations = await pb.collection('registrations').getFullList({
           filter: `slot_id = "${userSlotId}"`,
+          expand: 'slot_id',
         });
       } else {
-        detailedRegistrations = await pb.collection('registrations').getFullList();
+        detailedRegistrations = await pb.collection('registrations').getFullList({
+          expand: 'slot_id',
+        });
       }
       
-      // Sort by created date (newest first) - PocketBase returns records with created field
-      detailedRegistrations.sort((a, b) => new Date(b.created) - new Date(a.created));
+      // Sort by registered_at date (newest first)
+      detailedRegistrations.sort((a, b) => {
+        const dateA = a.registered_at ? new Date(a.registered_at) : new Date(0);
+        const dateB = b.registered_at ? new Date(b.registered_at) : new Date(0);
+        return dateB - dateA;
+      });
       
       // For slot admins, use all registrations for counts but filtered data for table
       setRegistrations(isSlotAdmin ? { detailed: detailedRegistrations, all: allRegistrations } : detailedRegistrations);
@@ -130,7 +137,14 @@ const AdminDashboard = ({ onLogout, user }) => {
       'WhatsApp Mobile': reg.whatsapp_mobile,
       'Level of Tajweed': reg.tajweed_level || '',
       'Time Slot': reg.expand?.slot_id?.display_name || getSlotDisplayName(reg.slot_id),
-      'Registered At': new Date(reg.created).toLocaleString(),
+      'Registered At': reg.registered_at ? new Date(reg.registered_at).toLocaleString('en-GB', { 
+        day: '2-digit', 
+        month: '2-digit', 
+        year: 'numeric', 
+        hour: '2-digit', 
+        minute: '2-digit',
+        hour12: true 
+      }) : '',
     }));
 
     const worksheet = XLSX.utils.json_to_sheet(exportData);
@@ -304,7 +318,14 @@ const AdminDashboard = ({ onLogout, user }) => {
                   <td>{reg.whatsapp_mobile}</td>
                   <td>{reg.tajweed_level || '-'}</td>
                   <td><span className="slot-badge">{reg.expand?.slot_id?.display_name || getSlotDisplayName(reg.slot_id)}</span></td>
-                  <td>{new Date(reg.created).toLocaleString()}</td>
+                  <td>{reg.registered_at ? new Date(reg.registered_at).toLocaleString('en-GB', { 
+                    day: '2-digit', 
+                    month: '2-digit', 
+                    year: 'numeric', 
+                    hour: '2-digit', 
+                    minute: '2-digit',
+                    hour12: true 
+                  }) : '-'}</td>
                 </tr>
               ))
             )}
