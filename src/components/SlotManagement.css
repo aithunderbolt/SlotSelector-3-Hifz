@@ -15,7 +15,7 @@
   gap: 15px;
 }
 
-.slot-management-header > div {
+.slot-management-header>div {
   flex: 1;
 }
 
@@ -104,6 +104,7 @@
   font-family: inherit;
   resize: vertical;
   line-height: 1.5;
+  min-width: 200px;
 }
 
 .slot-name-input:focus {
@@ -306,19 +307,126 @@
     width: 100%;
   }
 
+  /* Force table to not be like tables anymore */
+  .slots-table,
+  .slots-table thead,
+  .slots-table tbody,
   .slots-table th,
-  .slots-table td {
-    padding: 10px 8px;
-    font-size: 14px;
+  .slots-table td,
+  .slots-table tr {
+    display: block;
   }
 
+  /* Hide table headers (but not display: none;, for accessibility) */
+  .slots-table thead tr {
+    position: absolute;
+    top: -9999px;
+    left: -9999px;
+  }
+
+  .slots-table tr {
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    margin-bottom: 15px;
+    background: #fff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  }
+
+  .slots-table td {
+    /* Behave  like a "row" */
+    border: none;
+    border-bottom: 1px solid #eee;
+    position: relative;
+    padding-left: 50%;
+    padding-top: 12px;
+    padding-bottom: 12px;
+    min-height: 45px;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  .slots-table td:last-child {
+    border-bottom: none;
+    padding-bottom: 15px;
+  }
+
+  .slots-table td::before {
+    /* Now like a table header */
+    position: absolute;
+    /* Top/left values mimic padding */
+    top: 12px;
+    left: 12px;
+    width: 45%;
+    padding-right: 10px;
+    white-space: nowrap;
+    content: attr(data-label);
+    font-weight: 600;
+    color: #333;
+  }
+
+  /* Content styling adjustments for card view */
+  .slots-table td>* {
+    margin-left: auto;
+    /* Push content to the right */
+    width: 50%;
+    /* Default width for content */
+  }
+
+  /* Specific adjustments for inputs in card view */
   .slot-name-input {
-    max-width: 100%;
+    width: 100%;
+    margin-left: 0;
+    /* Reset margin for full width input */
+    margin-top: 30px;
+    /* Space for the label above */
+    min-width: unset;
+    /* Reset the min-width we added earlier */
+  }
+
+  /* Make the name cell stack vertically */
+  .slots-table td[data-label="Display Name"] {
+    display: block;
+    padding-left: 12px;
+    /* Reset padding */
+    padding-right: 12px;
+  }
+
+  .slots-table td[data-label="Display Name"]::before {
+    position: relative;
+    top: 0;
+    left: 0;
+    display: block;
+    margin-bottom: 5px;
+    width: 100%;
+  }
+
+  .slots-table td[data-label="Display Name"]>* {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  /* Adjust actions cell */
+  .slots-table td[data-label="Actions"] {
+    display: block;
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  .slots-table td[data-label="Actions"]::before {
+    position: relative;
+    top: 0;
+    left: 0;
+    display: block;
+    margin-bottom: 10px;
   }
 
   .action-buttons {
-    flex-direction: column;
     width: 100%;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-left: 0;
   }
 
   .edit-btn-inline,
@@ -327,6 +435,203 @@
   .delete-btn-inline,
   .confirm-delete-btn {
     width: 100%;
+    margin: 0;
+  }
+
+  .add-slot-form {
+    padding: 15px;
+  }
+
+  outline: none;
+  border-color: #4CAF50;
+}
+
+.add-slot-form textarea {
+  resize: vertical;
+  min-height: 60px;
+}
+
+.add-slot-form .form-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.add-slot-form .submit-btn {
+  padding: 10px 24px;
+  background: #4CAF50;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  transition: all 0.3s;
+}
+
+.add-slot-form .submit-btn:hover {
+  background: #45a049;
+}
+
+.add-slot-form .cancel-btn {
+  padding: 10px 24px;
+  background: #f5f5f5;
+  color: #333;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  transition: all 0.3s;
+}
+
+.add-slot-form .cancel-btn:hover {
+  background: #e0e0e0;
+}
+
+@media (max-width: 768px) {
+  .slot-management {
+    padding: 15px;
+  }
+
+  .slot-management-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .add-slot-btn {
+    width: 100%;
+  }
+
+  /* Force table to not be like tables anymore */
+  .slots-table,
+  .slots-table thead,
+  .slots-table tbody,
+  .slots-table th,
+  .slots-table td,
+  .slots-table tr {
+    display: block;
+  }
+
+  /* Hide table headers (but not display: none;, for accessibility) */
+  .slots-table thead tr {
+    position: absolute;
+    top: -9999px;
+    left: -9999px;
+  }
+
+  .slots-table tr {
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    margin-bottom: 15px;
+    background: #fff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  }
+
+  .slots-table td {
+    /* Behave  like a "row" */
+    border: none;
+    border-bottom: 1px solid #eee;
+    position: relative;
+    padding-left: 50%;
+    padding-top: 12px;
+    padding-bottom: 12px;
+    min-height: 45px;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  .slots-table td:last-child {
+    border-bottom: none;
+    padding-bottom: 15px;
+  }
+
+  .slots-table td::before {
+    /* Now like a table header */
+    position: absolute;
+    /* Top/left values mimic padding */
+    top: 12px;
+    left: 12px;
+    width: 45%;
+    padding-right: 10px;
+    white-space: nowrap;
+    content: attr(data-label);
+    font-weight: 600;
+    color: #333;
+  }
+
+  /* Content styling adjustments for card view */
+  .slots-table td>* {
+    margin-left: auto;
+    /* Push content to the right */
+    width: 50%;
+    /* Default width for content */
+  }
+
+  /* Specific adjustments for inputs in card view */
+  .slot-name-input {
+    width: 100%;
+    margin-left: 0;
+    /* Reset margin for full width input */
+    margin-top: 30px;
+    /* Space for the label above */
+    min-width: unset;
+    /* Reset the min-width we added earlier */
+  }
+
+  /* Make the name cell stack vertically */
+  .slots-table td[data-label="Display Name"] {
+    display: block;
+    padding-left: 12px;
+    /* Reset padding */
+    padding-right: 12px;
+  }
+
+  .slots-table td[data-label="Display Name"]::before {
+    position: relative;
+    top: 0;
+    left: 0;
+    display: block;
+    margin-bottom: 5px;
+    width: 100%;
+  }
+
+  .slots-table td[data-label="Display Name"]>* {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  /* Adjust actions cell */
+  .slots-table td[data-label="Actions"] {
+    display: block;
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  .slots-table td[data-label="Actions"]::before {
+    position: relative;
+    top: 0;
+    left: 0;
+    display: block;
+    margin-bottom: 10px;
+  }
+
+  .action-buttons {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-left: 0;
+  }
+
+  .edit-btn-inline,
+  .save-btn-inline,
+  .cancel-btn-inline,
+  .delete-btn-inline,
+  .confirm-delete-btn {
+    width: 100%;
+    margin: 0;
   }
 
   .add-slot-form {
@@ -341,4 +646,103 @@
   .add-slot-form .cancel-btn {
     width: 100%;
   }
+
+  .modal-content {
+    padding: 20px;
+  }
+}
+
+/* Modal Styles */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: white;
+  padding: 30px;
+  border-radius: 8px;
+  width: 90%;
+  max-width: 500px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.modal-content h3 {
+  margin-top: 0;
+  margin-bottom: 20px;
+  color: #333;
+}
+
+.modal-content .form-group {
+  margin-bottom: 20px;
+}
+
+.modal-content label {
+  display: block;
+  margin-bottom: 5px;
+  color: #555;
+  font-weight: 500;
+}
+
+.modal-content input,
+.modal-content textarea,
+.modal-content select {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+  box-sizing: border-box;
+  font-family: inherit;
+}
+
+.modal-content input:focus,
+.modal-content textarea:focus,
+.modal-content select:focus {
+  outline: none;
+  border-color: #4CAF50;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 25px;
+}
+
+.cancel-btn,
+.save-btn {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.3s;
+}
+
+.cancel-btn {
+  background: #f5f5f5;
+  color: #333;
+}
+
+.cancel-btn:hover {
+  background: #e0e0e0;
+}
+
+.save-btn {
+  background: #4CAF50;
+  color: white;
+}
+
+.save-btn:hover {
+  background: #45a049;
 }

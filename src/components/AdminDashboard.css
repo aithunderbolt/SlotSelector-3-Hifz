@@ -294,6 +294,7 @@
   gap: 10px;
   margin-bottom: 20px;
   border-bottom: 2px solid #e0e0e0;
+  flex-wrap: wrap;
 }
 
 .tab {
@@ -316,4 +317,17 @@
 .tab.active {
   color: #4CAF50;
   border-bottom-color: #4CAF50;
+}
+
+@media (max-width: 768px) {
+  .tabs {
+    gap: 5px;
+  }
+
+  .tab {
+    flex: 1 1 auto;
+    text-align: center;
+    padding: 10px 15px;
+    font-size: 14px;
+  }
 }

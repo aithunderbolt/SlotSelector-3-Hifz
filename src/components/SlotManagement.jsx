@@ -6,13 +6,13 @@ const SlotManagement = () => {
   const [slots, setSlots] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [showModal, setShowModal] = useState(false);
   const [editingSlot, setEditingSlot] = useState(null);
-  const [newName, setNewName] = useState('');
-  const [newMaxRegistrations, setNewMaxRegistrations] = useState('');
-  const [showAddForm, setShowAddForm] = useState(false);
-  const [newSlotName, setNewSlotName] = useState('');
-  const [newSlotOrder, setNewSlotOrder] = useState('');
-  const [newSlotMaxReg, setNewSlotMaxReg] = useState('15');
+  const [formData, setFormData] = useState({
+    display_name: '',
+    slot_order: '',
+    max_registrations: '15',
+  });
   const [deletingSlot, setDeletingSlot] = useState(null);
 
   const fetchSlots = async () => {
@@ -36,81 +36,53 @@ const SlotManagement = () => {
     fetchSlots();
   }, []);
 
-  const handleEdit = (slot) => {
-    setEditingSlot(slot.id);
-    setNewName(slot.display_name);
-    setNewMaxRegistrations(slot.max_registrations?.toString() || '15');
-    setError(null); // Clear any previous errors
-  };
-
-  const handleCancel = () => {
-    setEditingSlot(null);
-    setNewName('');
-    setNewMaxRegistrations('');
-    setError(null); // Clear any errors when canceling
-  };
-
-  const handleSave = async (slotId) => {
-    if (!newName.trim()) {
-      setError('Slot name cannot be empty');
-      return;
-    }
-
-    const maxReg = parseInt(newMaxRegistrations);
-    if (isNaN(maxReg) || maxReg < 1) {
-      setError('Maximum registrations must be at least 1');
-      return;
-    }
-
-    if (maxReg > 100) {
-      setError('Maximum registrations cannot exceed 100');
-      return;
-    }
-
-    try {
-      // Check current registration count for this slot
-      const registrations = await pb.collection('registrations').getFullList({
-        filter: `slot_id = "${slotId}"`,
-        fields: 'id',
+  const handleOpenModal = (slot = null) => {
+    if (slot) {
+      setEditingSlot(slot);
+      setFormData({
+        display_name: slot.display_name,
+        slot_order: slot.slot_order,
+        max_registrations: slot.max_registrations?.toString() || '15',
       });
-
-      const currentCount = registrations?.length || 0;
-
-      if (maxReg < currentCount) {
-        setError(`Cannot set maximum to ${maxReg}. This slot currently has ${currentCount} registration${currentCount !== 1 ? 's' : ''}. Please set a value of ${currentCount} or higher.`);
-        return;
-      }
-
-      await pb.collection('slots').update(slotId, {
-        display_name: newName.trim(),
-        max_registrations: maxReg,
-      });
-
+    } else {
       setEditingSlot(null);
-      setNewName('');
-      setNewMaxRegistrations('');
-      setError(null);
-      fetchSlots();
-    } catch (err) {
-      setError(err.message);
-      console.error('Error updating slot:', err);
+      // Find the next available slot order
+      const maxOrder = slots.reduce((max, s) => Math.max(max, s.slot_order || 0), 0);
+      setFormData({
+        display_name: '',
+        slot_order: (maxOrder + 1).toString(),
+        max_registrations: '15',
+      });
     }
+    setShowModal(true);
+    setError(null);
   };
 
-  const handleAddSlot = async (e) => {
+  const handleCloseModal = () => {
+    setShowModal(false);
+    setEditingSlot(null);
+    setFormData({
+      display_name: '',
+      slot_order: '',
+      max_registrations: '15',
+    });
+    setError(null);
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    if (!newSlotName.trim()) {
+
+    if (!formData.display_name.trim()) {
       setError('Slot name cannot be empty');
       return;
     }
 
-    if (!newSlotOrder || newSlotOrder < 1) {
+    if (!formData.slot_order || formData.slot_order < 1) {
       setError('Slot order must be a positive number');
       return;
     }
 
-    const maxReg = parseInt(newSlotMaxReg);
+    const maxReg = parseInt(formData.max_registrations);
     if (isNaN(maxReg) || maxReg < 1) {
       setError('Maximum registrations must be at least 1');
       return;
@@ -122,21 +94,38 @@ const SlotManagement = () => {
     }
 
     try {
-      await pb.collection('slots').create({
-        display_name: newSlotName.trim(),
-        slot_order: parseInt(newSlotOrder),
-        max_registrations: maxReg,
-      });
+      if (editingSlot) {
+        // Check current registration count for this slot
+        const registrations = await pb.collection('registrations').getFullList({
+          filter: `slot_id = "${editingSlot.id}"`,
+          fields: 'id',
+        });
 
-      setShowAddForm(false);
-      setNewSlotName('');
-      setNewSlotOrder('');
-      setNewSlotMaxReg('15');
-      setError(null);
+        const currentCount = registrations?.length || 0;
+
+        if (maxReg < currentCount) {
+          setError(`Cannot set maximum to ${maxReg}. This slot currently has ${currentCount} registration${currentCount !== 1 ? 's' : ''}. Please set a value of ${currentCount} or higher.`);
+          return;
+        }
+
+        await pb.collection('slots').update(editingSlot.id, {
+          display_name: formData.display_name.trim(),
+          slot_order: parseInt(formData.slot_order),
+          max_registrations: maxReg,
+        });
+      } else {
+        await pb.collection('slots').create({
+          display_name: formData.display_name.trim(),
+          slot_order: parseInt(formData.slot_order),
+          max_registrations: maxReg,
+        });
+      }
+
+      handleCloseModal();
       fetchSlots();
     } catch (err) {
       setError(err.message);
-      console.error('Error adding slot:', err);
+      console.error('Error saving slot:', err);
     }
   };
 
@@ -184,76 +173,15 @@ const SlotManagement = () => {
           <h2>Slot Management</h2>
           <p className="slot-info">Add, edit, or delete time slots. Changes will reflect immediately across the entire application.</p>
         </div>
-        <button 
-          onClick={() => setShowAddForm(!showAddForm)} 
+        <button
+          onClick={() => handleOpenModal()}
           className="add-slot-btn"
         >
-          {showAddForm ? 'Cancel' : '+ Add New Slot'}
+          + Add New Slot
         </button>
       </div>
 
       {error && <div className="error-message">{error}</div>}
-
-      {showAddForm && (
-        <div className="add-slot-form">
-          <h3>Add New Slot</h3>
-          <form onSubmit={handleAddSlot}>
-            <div className="form-group">
-              <label htmlFor="slotName">Slot Display Name:</label>
-              <textarea
-                id="slotName"
-                value={newSlotName}
-                onChange={(e) => setNewSlotName(e.target.value)}
-                placeholder="e.g., Monday - 5:00 PM to 6:00 PM"
-                rows="3"
-                required
-              />
-            </div>
-            <div className="form-group">
-              <label htmlFor="slotOrder">Slot Order:</label>
-              <input
-                type="number"
-                id="slotOrder"
-                value={newSlotOrder}
-                onChange={(e) => setNewSlotOrder(e.target.value)}
-                placeholder="e.g., 1, 2, 3..."
-                min="1"
-                required
-              />
-            </div>
-            <div className="form-group">
-              <label htmlFor="slotMaxReg">Maximum Registrations:</label>
-              <input
-                type="number"
-                id="slotMaxReg"
-                value={newSlotMaxReg}
-                onChange={(e) => setNewSlotMaxReg(e.target.value)}
-                placeholder="e.g., 15"
-                min="1"
-                max="100"
-                required
-              />
-              <small>Maximum number of students for this slot (1-100)</small>
-            </div>
-            <div className="form-actions">
-              <button type="submit" className="submit-btn">Add Slot</button>
-              <button 
-                type="button" 
-                onClick={() => {
-                  setShowAddForm(false);
-                  setNewSlotName('');
-                  setNewSlotOrder('');
-                  setNewSlotMaxReg('15');
-                  setError(null);
-                }} 
-                className="cancel-btn"
-              >
-                Cancel
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
 
       <div className="slots-table-container">
         <table className="slots-table">
@@ -268,54 +196,17 @@ const SlotManagement = () => {
           <tbody>
             {slots.map((slot) => (
               <tr key={slot.id}>
-                <td>
+                <td data-label="Slot Order">
                   <span className="slot-order-badge">#{slot.slot_order}</span>
                 </td>
-                <td>
-                  {editingSlot === slot.id ? (
-                    <textarea
-                      value={newName}
-                      onChange={(e) => setNewName(e.target.value)}
-                      className="slot-name-input"
-                      rows="3"
-                      autoFocus
-                    />
-                  ) : (
-                    <span className="slot-name">{slot.display_name}</span>
-                  )}
+                <td data-label="Display Name">
+                  <span className="slot-name">{slot.display_name}</span>
                 </td>
-                <td>
-                  {editingSlot === slot.id ? (
-                    <input
-                      type="number"
-                      value={newMaxRegistrations}
-                      onChange={(e) => setNewMaxRegistrations(e.target.value)}
-                      className="slot-max-input"
-                      min="1"
-                      max="100"
-                      style={{ width: '80px' }}
-                    />
-                  ) : (
-                    <span className="slot-max-badge">{slot.max_registrations || 15}</span>
-                  )}
+                <td data-label="Max Registrations">
+                  <span className="slot-max-badge">{slot.max_registrations || 15}</span>
                 </td>
-                <td>
-                  {editingSlot === slot.id ? (
-                    <div className="action-buttons">
-                      <button
-                        onClick={() => handleSave(slot.id)}
-                        className="save-btn-inline"
-                      >
-                        Save
-                      </button>
-                      <button
-                        onClick={handleCancel}
-                        className="cancel-btn-inline"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  ) : deletingSlot === slot.id ? (
+                <td data-label="Actions">
+                  {deletingSlot === slot.id ? (
                     <div className="action-buttons">
                       <button
                         onClick={() => handleDeleteSlot(slot.id)}
@@ -333,7 +224,7 @@ const SlotManagement = () => {
                   ) : (
                     <div className="action-buttons">
                       <button
-                        onClick={() => handleEdit(slot)}
+                        onClick={() => handleOpenModal(slot)}
                         className="edit-btn-inline"
                       >
                         Edit
@@ -352,6 +243,65 @@ const SlotManagement = () => {
           </tbody>
         </table>
       </div>
+
+      {showModal && (
+        <div className="modal-overlay" onClick={handleCloseModal}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <h3>{editingSlot ? 'Edit Slot' : 'Add New Slot'}</h3>
+            <form onSubmit={handleSubmit}>
+              <div className="form-group">
+                <label htmlFor="slotName">Slot Display Name:</label>
+                <textarea
+                  id="slotName"
+                  value={formData.display_name}
+                  onChange={(e) => setFormData({ ...formData, display_name: e.target.value })}
+                  placeholder="e.g., Monday - 5:00 PM to 6:00 PM"
+                  rows="3"
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label htmlFor="slotOrder">Slot Order:</label>
+                <input
+                  type="number"
+                  id="slotOrder"
+                  value={formData.slot_order}
+                  onChange={(e) => setFormData({ ...formData, slot_order: e.target.value })}
+                  placeholder="e.g., 1, 2, 3..."
+                  min="1"
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label htmlFor="slotMaxReg">Maximum Registrations:</label>
+                <input
+                  type="number"
+                  id="slotMaxReg"
+                  value={formData.max_registrations}
+                  onChange={(e) => setFormData({ ...formData, max_registrations: e.target.value })}
+                  placeholder="e.g., 15"
+                  min="1"
+                  max="100"
+                  required
+                />
+                <small>Maximum number of students for this slot (1-100)</small>
+              </div>
+              <div className="modal-actions">
+                <button
+                  type="button"
+                  onClick={handleCloseModal}
+                  className="cancel-btn"
+                >
+                  Cancel
+                </button>
+                <button type="submit" className="save-btn">
+                  {editingSlot ? 'Update Slot' : 'Add Slot'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
