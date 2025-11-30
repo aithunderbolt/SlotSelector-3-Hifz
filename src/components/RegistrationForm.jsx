@@ -307,7 +307,7 @@ const RegistrationForm = () => {
                   disabled={submitting}
                 />
                 <span className="radio-label">
-                  Advanced <span style={{ color: '#666', fontSize: '0.9em' }}>- One page a day</span>
+                  Advanced <span style={{ color: '#666', fontSize: '0.9em' }}>- Half page a day or One page a day</span>
                 </span>
               </label>
             </div>
