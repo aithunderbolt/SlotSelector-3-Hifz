@@ -136,6 +136,9 @@ const AdminDashboard = ({ onLogout, user }) => {
       Email: reg.email,
       'WhatsApp Mobile': reg.whatsapp_mobile,
       'Level of Tajweed': reg.tajweed_level || '',
+      'Education': reg.education || '',
+      'Profession': reg.profession || '',
+      'Previous Hifz': reg.previous_hifz || '',
       'Time Slot': reg.expand?.slot_id?.display_name || getSlotDisplayName(reg.slot_id),
       'Registered At': reg.registered_at ? new Date(reg.registered_at).toLocaleString('en-GB', { 
         day: '2-digit', 
@@ -158,6 +161,9 @@ const AdminDashboard = ({ onLogout, user }) => {
       { wch: 30 }, // Email
       { wch: 20 }, // WhatsApp Mobile
       { wch: 15 }, // Level of Tajweed
+      { wch: 20 }, // Education
+      { wch: 20 }, // Profession
+      { wch: 30 }, // Previous Hifz
       { wch: 15 }, // Time Slot
       { wch: 20 }, // Registered At
     ];
@@ -299,6 +305,9 @@ const AdminDashboard = ({ onLogout, user }) => {
               <th>Email</th>
               <th>WhatsApp Mobile</th>
               <th>Level of Tajweed</th>
+              <th>Education</th>
+              <th>Profession</th>
+              <th>Previous Hifz</th>
               <th>Time Slot</th>
               <th>Registered At</th>
             </tr>
@@ -306,7 +315,7 @@ const AdminDashboard = ({ onLogout, user }) => {
           <tbody>
             {filteredRegistrations.length === 0 ? (
               <tr>
-                <td colSpan="8" className="no-data">No registrations found</td>
+                <td colSpan="11" className="no-data">No registrations found</td>
               </tr>
             ) : (
               filteredRegistrations.map((reg) => (
@@ -317,6 +326,9 @@ const AdminDashboard = ({ onLogout, user }) => {
                   <td>{reg.email}</td>
                   <td>{reg.whatsapp_mobile}</td>
                   <td>{reg.tajweed_level || '-'}</td>
+                  <td>{reg.education || '-'}</td>
+                  <td>{reg.profession || '-'}</td>
+                  <td>{reg.previous_hifz || '-'}</td>
                   <td><span className="slot-badge">{reg.expand?.slot_id?.display_name || getSlotDisplayName(reg.slot_id)}</span></td>
                   <td>{reg.registered_at ? new Date(reg.registered_at).toLocaleString('en-GB', { 
                     day: '2-digit', 
