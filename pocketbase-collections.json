@@ -78,7 +78,9 @@
             "cascadeDelete": false,
             "minSelect": null,
             "maxSelect": 1,
-            "displayFields": ["display_name"]
+            "displayFields": [
+              "display_name"
+            ]
           }
         },
         {
@@ -175,7 +177,10 @@
           "required": true,
           "options": {
             "maxSelect": 1,
-            "values": ["super_admin", "slot_admin"]
+            "values": [
+              "super_admin",
+              "slot_admin"
+            ]
           }
         },
         {
@@ -187,8 +192,28 @@
             "cascadeDelete": false,
             "minSelect": null,
             "maxSelect": 1,
-            "displayFields": ["display_name"]
+            "displayFields": [
+              "display_name"
+            ]
           }
+        },
+        {
+          "name": "tajweed_beginner",
+          "type": "bool",
+          "required": false,
+          "options": {}
+        },
+        {
+          "name": "tajweed_intermediate",
+          "type": "bool",
+          "required": false,
+          "options": {}
+        },
+        {
+          "name": "tajweed_advanced",
+          "type": "bool",
+          "required": false,
+          "options": {}
         }
       ],
       "indexes": [

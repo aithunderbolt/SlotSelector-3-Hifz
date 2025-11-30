@@ -317,6 +317,77 @@ No changes - same accessibility features.
 
 No changes - same meta tags and structure.
 
+---
+
+## Recent Feature Addition: Tajweed Level Filtering (November 2025)
+
+### Overview
+Added Tajweed level filtering to allow slot admins to specify which proficiency levels (Beginner, Intermediate, Advanced) their assigned slots support. Users will only see slots that match their selected Tajweed level during registration.
+
+### Files Modified
+
+#### 1. `pocketbase-collections.json`
+**Changed**: Added three boolean fields to users collection
+- Added `tajweed_beginner` (bool, optional)
+- Added `tajweed_intermediate` (bool, optional)
+- Added `tajweed_advanced` (bool, optional)
+
+#### 2. `src/components/UserManagement.jsx`
+**Changed**: Enhanced form to include Tajweed level checkboxes
+- Updated `formData` state to include checkbox values
+- Added checkbox UI in the modal form
+- Updated create/update operations to save checkbox values
+- Added helper text explaining default behavior
+
+#### 3. `src/components/UserManagement.css`
+**Changed**: Added styling for checkbox group
+- Added `.checkbox-group` styles
+- Added `.checkbox-option` styles with hover effects
+- Proper spacing and visual feedback
+
+#### 4. `src/hooks/useSlotAvailability.js`
+**Changed**: Implemented filtering logic based on Tajweed levels
+- Hook now accepts `userTajweedLevel` parameter
+- Fetches slot admin Tajweed settings
+- Filters slots based on matching logic:
+  - If admin has checkboxes selected → only show if user's level matches
+  - If admin has NO checkboxes selected → show to ALL users (default)
+- Added dependency to re-fetch when user changes selection
+
+#### 5. `src/components/RegistrationForm.jsx`
+**Changed**: Connected Tajweed level to slot filtering
+- Updated `useSlotAvailability` hook call to pass `formData.tajweed_level`
+- Slots now filter dynamically as user selects their level
+
+### Feature Behavior
+
+**Slot Admin Workflow:**
+1. Admin selects one or more Tajweed levels for their slot
+2. Can leave all unchecked to show slot to all users
+3. Checkboxes are saved to database and persist
+
+**User Workflow:**
+1. User selects their Tajweed level in registration form
+2. Available slots automatically filter to match selection
+3. Only compatible slots are displayed
+
+**Matching Logic Examples:**
+| Admin Selection | User Selection | Slot Visible? |
+|----------------|----------------|---------------|
+| ✓ Beginner | Beginner | ✅ Yes |
+| ✓ Beginner | Intermediate | ❌ No |
+| ✓ Beginner, ✓ Intermediate | Beginner | ✅ Yes |
+| ✓ Beginner, ✓ Intermediate | Advanced | ❌ No |
+| (none) | Any level | ✅ Yes |
+
+### Benefits
+- Ensures proper student placement based on Tajweed proficiency
+- Flexible system allows slots to support multiple levels
+- Backward compatible (existing slots show to all users by default)
+- Real-time filtering for better UX
+
+---
+
 ## Summary
 
 ✅ **10 files modified** - All component and hook files
@@ -327,3 +398,4 @@ No changes - same meta tags and structure.
 ✅ **Self-hosted** - Full control over data
 
 The migration is complete and ready for testing!
+

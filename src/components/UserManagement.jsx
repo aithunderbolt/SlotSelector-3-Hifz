@@ -15,6 +15,9 @@ const UserManagement = () => {
     password: '',
     role: 'slot_admin',
     assigned_slot_id: '',
+    tajweed_beginner: false,
+    tajweed_intermediate: false,
+    tajweed_advanced: false,
   });
 
   const fetchData = async () => {
@@ -51,10 +54,13 @@ const UserManagement = () => {
         password: '',
         role: user.role,
         assigned_slot_id: user.assigned_slot_id || '',
+        tajweed_beginner: user.tajweed_beginner || false,
+        tajweed_intermediate: user.tajweed_intermediate || false,
+        tajweed_advanced: user.tajweed_advanced || false,
       });
     } else {
       setEditingUser(null);
-      setFormData({ name: '', username: '', password: '', role: 'slot_admin', assigned_slot_id: '' });
+      setFormData({ name: '', username: '', password: '', role: 'slot_admin', assigned_slot_id: '', tajweed_beginner: false, tajweed_intermediate: false, tajweed_advanced: false });
     }
     setShowModal(true);
   };
@@ -62,7 +68,7 @@ const UserManagement = () => {
   const handleCloseModal = () => {
     setShowModal(false);
     setEditingUser(null);
-    setFormData({ name: '', username: '', password: '', role: 'slot_admin', assigned_slot_id: '' });
+    setFormData({ name: '', username: '', password: '', role: 'slot_admin', assigned_slot_id: '', tajweed_beginner: false, tajweed_intermediate: false, tajweed_advanced: false });
   };
 
   const handleSubmit = async (e) => {
@@ -70,12 +76,31 @@ const UserManagement = () => {
     setError(null);
     try {
       if (editingUser) {
-        const updateData = { name: formData.name || '', username: formData.username, role: formData.role, assigned_slot_id: formData.assigned_slot_id || '' };
+        const updateData = {
+          name: formData.name || '',
+          username: formData.username,
+          role: formData.role,
+          assigned_slot_id: formData.assigned_slot_id || '',
+          tajweed_beginner: formData.tajweed_beginner,
+          tajweed_intermediate: formData.tajweed_intermediate,
+          tajweed_advanced: formData.tajweed_advanced,
+        };
         if (formData.password) updateData.password = formData.password;
         await pb.collection('users').update(editingUser.id, updateData);
       } else {
         if (!formData.password) { setError('Password is required'); return; }
-        await pb.collection('users').create({ name: formData.name || '', username: formData.username, email: `${formData.username}@example.com`, password: formData.password, passwordConfirm: formData.password, role: formData.role, assigned_slot_id: formData.assigned_slot_id || '' });
+        await pb.collection('users').create({
+          name: formData.name || '',
+          username: formData.username,
+          email: `${formData.username}@example.com`,
+          password: formData.password,
+          passwordConfirm: formData.password,
+          role: formData.role,
+          assigned_slot_id: formData.assigned_slot_id || '',
+          tajweed_beginner: formData.tajweed_beginner,
+          tajweed_intermediate: formData.tajweed_intermediate,
+          tajweed_advanced: formData.tajweed_advanced,
+        });
       }
       handleCloseModal();
       fetchData();
@@ -128,6 +153,38 @@ const UserManagement = () => {
               <div className="form-group"><label>Username</label><input type="text" value={formData.username} onChange={(e) => setFormData({ ...formData, username: e.target.value })} required /></div>
               <div className="form-group"><label>Password {editingUser && '(leave blank to keep current)'}</label><input type="password" value={formData.password} onChange={(e) => setFormData({ ...formData, password: e.target.value })} required={!editingUser} /></div>
               <div className="form-group"><label>Assigned Slot</label><select value={formData.assigned_slot_id} onChange={(e) => setFormData({ ...formData, assigned_slot_id: e.target.value })} required><option value="">Select a slot</option>{slots.map((slot) => <option key={slot.id} value={slot.id}>{slot.display_name}</option>)}</select></div>
+              <div className="form-group">
+                <label>Tajweed Levels (select applicable levels for this slot)</label>
+                <div className="checkbox-group">
+                  <label className="checkbox-option">
+                    <input
+                      type="checkbox"
+                      checked={formData.tajweed_beginner}
+                      onChange={(e) => setFormData({ ...formData, tajweed_beginner: e.target.checked })}
+                    />
+                    <span>Beginner</span>
+                  </label>
+                  <label className="checkbox-option">
+                    <input
+                      type="checkbox"
+                      checked={formData.tajweed_intermediate}
+                      onChange={(e) => setFormData({ ...formData, tajweed_intermediate: e.target.checked })}
+                    />
+                    <span>Intermediate</span>
+                  </label>
+                  <label className="checkbox-option">
+                    <input
+                      type="checkbox"
+                      checked={formData.tajweed_advanced}
+                      onChange={(e) => setFormData({ ...formData, tajweed_advanced: e.target.checked })}
+                    />
+                    <span>Advanced</span>
+                  </label>
+                </div>
+                <small style={{ display: 'block', marginTop: '8px', color: '#666', fontSize: '0.85em' }}>
+                  If no level is selected, this slot will be shown to all users regardless of their Tajweed level.
+                </small>
+              </div>
               <div className="modal-actions"><button type="button" onClick={handleCloseModal} className="cancel-btn">Cancel</button><button type="submit" className="save-btn">{editingUser ? 'Update' : 'Create'}</button></div>
             </form>
           </div>

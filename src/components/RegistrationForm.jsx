@@ -19,7 +19,7 @@ const RegistrationForm = () => {
   const [submitting, setSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState(null);
   const [formTitle, setFormTitle] = useState('Hifz Registration Form');
-  const { availableSlots, loading, error, refetch } = useSlotAvailability();
+  const { availableSlots, loading, error, refetch } = useSlotAvailability(formData.tajweed_level);
 
   useEffect(() => {
     const fetchFormTitle = async () => {
