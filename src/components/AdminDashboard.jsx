@@ -121,6 +121,12 @@ const AdminDashboard = ({ onLogout, user }) => {
 
   const slotCounts = getSlotCounts();
 
+  // Helper function to get slot display name
+  const getSlotDisplayName = (slotId) => {
+    const slot = slots.find(s => s.id === slotId);
+    return slot ? slot.display_name : 'Unknown Slot';
+  };
+
   // Use detailed registrations for slot admin, regular for super admin
   const detailedRegistrations = isSlotAdmin ? (registrations.detailed || []) : (Array.isArray(registrations) ? registrations : []);
   
@@ -203,11 +209,6 @@ const AdminDashboard = ({ onLogout, user }) => {
   const getSortIcon = (key) => {
     if (sortConfig.key !== key) return ' ↕';
     return sortConfig.direction === 'asc' ? ' ↑' : ' ↓';
-  };
-
-  const getSlotDisplayName = (slotId) => {
-    const slot = slots.find(s => s.id === slotId);
-    return slot ? slot.display_name : 'Unknown Slot';
   };
 
   const formatDateToDDMMYYYY = (dateStr) => {
