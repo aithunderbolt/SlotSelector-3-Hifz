@@ -3,6 +3,30 @@ import { pb } from '../lib/supabaseClient';
 import { useSlotAvailability } from '../hooks/useSlotAvailability';
 import './RegistrationForm.css';
 
+// Country codes with their phone number lengths
+const COUNTRY_CODES = [
+  { code: '+966', country: 'Saudi Arabia (KSA)', length: 9, flag: '🇸🇦' },
+  { code: '+971', country: 'UAE', length: 9, flag: '🇦🇪' },
+  { code: '+965', country: 'Kuwait', length: 8, flag: '🇰🇼' },
+  { code: '+974', country: 'Qatar', length: 8, flag: '🇶🇦' },
+  { code: '+973', country: 'Bahrain', length: 8, flag: '🇧🇭' },
+  { code: '+968', country: 'Oman', length: 8, flag: '🇴🇲' },
+  { code: '+20', country: 'Egypt', length: 10, flag: '🇪🇬' },
+  { code: '+962', country: 'Jordan', length: 9, flag: '🇯🇴' },
+  { code: '+961', country: 'Lebanon', length: 8, flag: '🇱🇧' },
+  { code: '+963', country: 'Syria', length: 9, flag: '🇸🇾' },
+  { code: '+964', country: 'Iraq', length: 10, flag: '🇮🇶' },
+  { code: '+967', country: 'Yemen', length: 9, flag: '🇾🇪' },
+  { code: '+92', country: 'Pakistan', length: 10, flag: '🇵🇰' },
+  { code: '+91', country: 'India', length: 10, flag: '🇮🇳' },
+  { code: '+880', country: 'Bangladesh', length: 10, flag: '🇧🇩' },
+  { code: '+60', country: 'Malaysia', length: 9, flag: '🇲🇾' },
+  { code: '+62', country: 'Indonesia', length: 10, flag: '🇮🇩' },
+  { code: '+90', country: 'Turkey', length: 10, flag: '🇹🇷' },
+  { code: '+1', country: 'USA/Canada', length: 10, flag: '🇺🇸' },
+  { code: '+44', country: 'UK', length: 10, flag: '🇬🇧' },
+];
+
 const RegistrationForm = () => {
   const [formData, setFormData] = useState({
     name: '',
@@ -16,6 +40,8 @@ const RegistrationForm = () => {
     profession: '',
     previous_hifz: '',
   });
+  const [countryCode, setCountryCode] = useState('+966'); // Default to Saudi Arabia
+  const [mobileNumber, setMobileNumber] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState(null);
   const [formTitle, setFormTitle] = useState('Hifz Registration Form');
@@ -57,6 +83,28 @@ const RegistrationForm = () => {
     });
   };
 
+  const handleCountryCodeChange = (e) => {
+    setCountryCode(e.target.value);
+    // Update the full WhatsApp number
+    if (mobileNumber) {
+      setFormData({
+        ...formData,
+        whatsapp_mobile: e.target.value + mobileNumber,
+      });
+    }
+  };
+
+  const handleMobileNumberChange = (e) => {
+    // Only allow digits
+    const value = e.target.value.replace(/\D/g, '');
+    setMobileNumber(value);
+    // Update the full WhatsApp number
+    setFormData({
+      ...formData,
+      whatsapp_mobile: countryCode + value,
+    });
+  };
+
   const formatDateToDisplay = (isoDate) => {
     if (!isoDate) return '';
     const [year, month, day] = isoDate.split('-');
@@ -79,10 +127,16 @@ const RegistrationForm = () => {
     if (!emailRegex.test(formData.email)) {
       return 'Valid email is required';
     }
-    const phoneRegex = /^\+?[\d\s-]{10,}$/;
-    if (!phoneRegex.test(formData.whatsapp_mobile)) {
-      return 'Valid WhatsApp mobile number is required';
+    
+    // Validate mobile number based on selected country
+    if (!mobileNumber) {
+      return 'WhatsApp mobile number is required';
     }
+    const selectedCountry = COUNTRY_CODES.find(c => c.code === countryCode);
+    if (selectedCountry && mobileNumber.length !== selectedCountry.length) {
+      return `Mobile number for ${selectedCountry.country} must be ${selectedCountry.length} digits`;
+    }
+    
     if (!formData.date_of_birth) {
       return 'Date of Birth is required';
     }
@@ -153,6 +207,8 @@ const RegistrationForm = () => {
         profession: '',
         previous_hifz: '',
       });
+      setMobileNumber('');
+      setCountryCode('+966');
       refetch();
     } catch (err) {
       setSubmitStatus({
@@ -252,15 +308,37 @@ const RegistrationForm = () => {
 
           <div className="form-group">
             <label htmlFor="whatsapp_mobile">WhatsApp Mobile *</label>
-            <input
-              type="tel"
-              id="whatsapp_mobile"
-              name="whatsapp_mobile"
-              value={formData.whatsapp_mobile}
-              onChange={handleChange}
-              required
-              disabled={submitting}
-            />
+            <div className="phone-input-container">
+              <select
+                className="country-code-select"
+                value={countryCode}
+                onChange={handleCountryCodeChange}
+                disabled={submitting}
+              >
+                {COUNTRY_CODES.map((country) => (
+                  <option key={country.code} value={country.code}>
+                    {country.flag} {country.code}
+                  </option>
+                ))}
+              </select>
+              <input
+                type="tel"
+                id="whatsapp_mobile"
+                name="mobile_number"
+                className="mobile-number-input"
+                value={mobileNumber}
+                onChange={handleMobileNumberChange}
+                placeholder={`Enter ${COUNTRY_CODES.find(c => c.code === countryCode)?.length || ''} digits`}
+                required
+                disabled={submitting}
+                maxLength={COUNTRY_CODES.find(c => c.code === countryCode)?.length || 15}
+              />
+            </div>
+            {mobileNumber && (
+              <small className="phone-preview">
+                Full number: {countryCode}{mobileNumber}
+              </small>
+            )}
           </div>
 
           <div className="form-group">
