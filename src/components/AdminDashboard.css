@@ -21,6 +21,13 @@
   font-size: 28px;
 }
 
+.form-title-display {
+  margin: 8px 0;
+  color: #667eea;
+  font-size: 24px;
+  font-weight: 600;
+}
+
 .user-info {
   margin: 0;
   color: #666;

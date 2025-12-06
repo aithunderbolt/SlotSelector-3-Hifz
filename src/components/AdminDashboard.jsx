@@ -13,6 +13,7 @@ const AdminDashboard = ({ onLogout, user }) => {
   const [error, setError] = useState(null);
   const [slotFilter, setSlotFilter] = useState(user.role === 'super_admin' ? 'all' : user.assigned_slot_id);
   const [activeTab, setActiveTab] = useState('registrations');
+  const [formTitle, setFormTitle] = useState('Hifz Registration Form');
 
   const isSlotAdmin = user.role === 'slot_admin';
   const isSuperAdmin = user.role === 'super_admin';
@@ -21,6 +22,14 @@ const AdminDashboard = ({ onLogout, user }) => {
   const fetchData = async () => {
     try {
       setLoading(true);
+
+      // Fetch form title from settings
+      const titleSettings = await pb.collection('settings').getFullList({
+        filter: 'key = "form_title"',
+      });
+      if (titleSettings.length > 0) {
+        setFormTitle(titleSettings[0].value);
+      }
 
       // Fetch slots with their max_registrations
       const slotsData = await pb.collection('slots').getFullList({
@@ -201,6 +210,7 @@ const AdminDashboard = ({ onLogout, user }) => {
       <div className="admin-header">
         <div>
           <h1>Admin Dashboard</h1>
+          <p className="form-title-display">{formTitle}</p>
           <p className="user-info">
             Logged in as: <strong>{user.username}</strong> ({user.role === 'super_admin' ? 'Super Admin' : `Slot Admin - ${userSlotName}`})
           </p>
