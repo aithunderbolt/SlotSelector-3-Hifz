@@ -9,6 +9,8 @@ const UserManagement = () => {
   const [error, setError] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortConfig, setSortConfig] = useState({ key: 'username', direction: 'asc' });
   const [formData, setFormData] = useState({
     name: '',
     username: '',
@@ -121,18 +123,100 @@ const UserManagement = () => {
 
   if (loading) return <div className="loading">Loading users...</div>;
 
+  // Apply search filter
+  let filteredUsers = users;
+  if (searchQuery.trim()) {
+    const query = searchQuery.toLowerCase();
+    filteredUsers = users.filter((user) => {
+      return (
+        user.name?.toLowerCase().includes(query) ||
+        user.username?.toLowerCase().includes(query) ||
+        user.role?.toLowerCase().includes(query) ||
+        user.expand?.assigned_slot_id?.display_name?.toLowerCase().includes(query)
+      );
+    });
+  }
+
+  // Apply sorting
+  const sortedUsers = [...filteredUsers].sort((a, b) => {
+    let aValue, bValue;
+
+    switch (sortConfig.key) {
+      case 'name':
+        aValue = a.name?.toLowerCase() || '';
+        bValue = b.name?.toLowerCase() || '';
+        break;
+      case 'username':
+        aValue = a.username?.toLowerCase() || '';
+        bValue = b.username?.toLowerCase() || '';
+        break;
+      case 'role':
+        aValue = a.role?.toLowerCase() || '';
+        bValue = b.role?.toLowerCase() || '';
+        break;
+      case 'slot':
+        aValue = a.expand?.assigned_slot_id?.display_name?.toLowerCase() || '';
+        bValue = b.expand?.assigned_slot_id?.display_name?.toLowerCase() || '';
+        break;
+      default:
+        return 0;
+    }
+
+    if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
+    if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
+    return 0;
+  });
+
+  const handleSort = (key) => {
+    setSortConfig((prev) => ({
+      key,
+      direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc',
+    }));
+  };
+
+  const getSortIcon = (key) => {
+    if (sortConfig.key !== key) return ' ↕';
+    return sortConfig.direction === 'asc' ? ' ↑' : ' ↓';
+  };
+
   return (
     <div className="user-management">
       <div className="user-management-header">
         <h2>User Management</h2>
-        <button onClick={() => handleOpenModal()} className="add-user-btn">Add Slot Admin</button>
+        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+          <input
+            type="text"
+            placeholder="Search users..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="search-input"
+            style={{ padding: '8px 12px', borderRadius: '4px', border: '1px solid #ddd', minWidth: '250px' }}
+          />
+          <button onClick={() => handleOpenModal()} className="add-user-btn">Add Slot Admin</button>
+        </div>
       </div>
       {error && <div className="error-message">{error}</div>}
       <div className="users-table-container">
         <table className="users-table">
-          <thead><tr><th>Name</th><th>Username</th><th>Role</th><th>Assigned Slot</th><th>Actions</th></tr></thead>
+          <thead>
+            <tr>
+              <th onClick={() => handleSort('name')} style={{ cursor: 'pointer' }}>
+                Name{getSortIcon('name')}
+              </th>
+              <th onClick={() => handleSort('username')} style={{ cursor: 'pointer' }}>
+                Username{getSortIcon('username')}
+              </th>
+              <th onClick={() => handleSort('role')} style={{ cursor: 'pointer' }}>
+                Role{getSortIcon('role')}
+              </th>
+              <th onClick={() => handleSort('slot')} style={{ cursor: 'pointer' }}>
+                Assigned Slot{getSortIcon('slot')}
+              </th>
+              <th>Actions</th>
+            </tr>
+          </thead>
           <tbody>
-            {users.length === 0 ? <tr><td colSpan="5" className="no-data">No slot admins found</td></tr> : users.map((user) => (
+            {sortedUsers.length === 0 ? <tr><td colSpan="5" className="no-data">{searchQuery ? 'No matching users found' : 'No slot admins found'}</td></tr> : sortedUsers.map((user) => (
               <tr key={user.id}>
                 <td>{user.name || '-'}</td>
                 <td>{user.username}</td>

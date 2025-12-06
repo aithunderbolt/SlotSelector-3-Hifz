@@ -14,6 +14,8 @@ const AdminDashboard = ({ onLogout, user }) => {
   const [slotFilter, setSlotFilter] = useState(user.role === 'super_admin' ? 'all' : user.assigned_slot_id);
   const [activeTab, setActiveTab] = useState('registrations');
   const [formTitle, setFormTitle] = useState('Hifz Registration Form');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortConfig, setSortConfig] = useState({ key: 'registered_at', direction: 'desc' });
 
   const isSlotAdmin = user.role === 'slot_admin';
   const isSuperAdmin = user.role === 'super_admin';
@@ -122,9 +124,86 @@ const AdminDashboard = ({ onLogout, user }) => {
   // Use detailed registrations for slot admin, regular for super admin
   const detailedRegistrations = isSlotAdmin ? (registrations.detailed || []) : (Array.isArray(registrations) ? registrations : []);
   
-  const filteredRegistrations = slotFilter === 'all'
+  let filteredRegistrations = slotFilter === 'all'
     ? detailedRegistrations
     : detailedRegistrations.filter((reg) => reg.slot_id === slotFilter);
+
+  // Apply search filter
+  if (searchQuery.trim()) {
+    const query = searchQuery.toLowerCase();
+    filteredRegistrations = filteredRegistrations.filter((reg) => {
+      return (
+        reg.name?.toLowerCase().includes(query) ||
+        reg.fathers_name?.toLowerCase().includes(query) ||
+        reg.email?.toLowerCase().includes(query) ||
+        reg.whatsapp_mobile?.includes(query) ||
+        reg.tajweed_level?.toLowerCase().includes(query) ||
+        reg.education?.toLowerCase().includes(query) ||
+        reg.profession?.toLowerCase().includes(query) ||
+        reg.previous_hifz?.toLowerCase().includes(query) ||
+        reg.expand?.slot_id?.display_name?.toLowerCase().includes(query) ||
+        getSlotDisplayName(reg.slot_id)?.toLowerCase().includes(query)
+      );
+    });
+  }
+
+  // Apply sorting
+  const sortedRegistrations = [...filteredRegistrations].sort((a, b) => {
+    let aValue, bValue;
+
+    switch (sortConfig.key) {
+      case 'name':
+        aValue = a.name?.toLowerCase() || '';
+        bValue = b.name?.toLowerCase() || '';
+        break;
+      case 'fathers_name':
+        aValue = a.fathers_name?.toLowerCase() || '';
+        bValue = b.fathers_name?.toLowerCase() || '';
+        break;
+      case 'date_of_birth':
+        aValue = a.date_of_birth ? new Date(a.date_of_birth) : new Date(0);
+        bValue = b.date_of_birth ? new Date(b.date_of_birth) : new Date(0);
+        break;
+      case 'email':
+        aValue = a.email?.toLowerCase() || '';
+        bValue = b.email?.toLowerCase() || '';
+        break;
+      case 'whatsapp_mobile':
+        aValue = a.whatsapp_mobile || '';
+        bValue = b.whatsapp_mobile || '';
+        break;
+      case 'tajweed_level':
+        aValue = a.tajweed_level?.toLowerCase() || '';
+        bValue = b.tajweed_level?.toLowerCase() || '';
+        break;
+      case 'slot':
+        aValue = (a.expand?.slot_id?.display_name || getSlotDisplayName(a.slot_id))?.toLowerCase() || '';
+        bValue = (b.expand?.slot_id?.display_name || getSlotDisplayName(b.slot_id))?.toLowerCase() || '';
+        break;
+      case 'registered_at':
+        aValue = a.registered_at ? new Date(a.registered_at) : new Date(0);
+        bValue = b.registered_at ? new Date(b.registered_at) : new Date(0);
+        break;
+      default:
+        return 0;
+    }
+
+    if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
+    if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
+    return 0;
+  });
+
+  const handleSort = (key) => {
+    setSortConfig((prev) => ({
+      key,
+      direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc',
+    }));
+  };
+
+  const getSortIcon = (key) => {
+    if (sortConfig.key !== key) return ' ↕';
+    return sortConfig.direction === 'asc' ? ' ↑' : ' ↓';
+  };
 
   const getSlotDisplayName = (slotId) => {
     const slot = slots.find(s => s.id === slotId);
@@ -278,6 +357,13 @@ const AdminDashboard = ({ onLogout, user }) => {
         <div className="filter-section">
           <div className="filter-controls">
             <h3>Showing: {slotFilter === 'all' ? 'All Slots' : getSlotDisplayName(slotFilter)}</h3>
+            <input
+              type="text"
+              placeholder="Search registrations..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="search-input"
+            />
           </div>
           <div className="download-buttons">
             <button onClick={handleDownloadAll} className="download-btn">
@@ -294,6 +380,13 @@ const AdminDashboard = ({ onLogout, user }) => {
         <div className="filter-section">
           <div className="filter-controls">
             <h3>{userSlotName} Registrations</h3>
+            <input
+              type="text"
+              placeholder="Search registrations..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="search-input"
+            />
           </div>
           <div className="download-buttons">
             <button onClick={handleDownloadFiltered} className="download-btn">
@@ -309,26 +402,42 @@ const AdminDashboard = ({ onLogout, user }) => {
         <table className="registrations-table">
           <thead>
             <tr>
-              <th>Name</th>
-              <th>Father's Name</th>
-              <th>Date of Birth</th>
-              <th>Email</th>
-              <th>WhatsApp Mobile</th>
-              <th>Level of Tajweed</th>
+              <th onClick={() => handleSort('name')} style={{ cursor: 'pointer' }}>
+                Name{getSortIcon('name')}
+              </th>
+              <th onClick={() => handleSort('fathers_name')} style={{ cursor: 'pointer' }}>
+                Father's Name{getSortIcon('fathers_name')}
+              </th>
+              <th onClick={() => handleSort('date_of_birth')} style={{ cursor: 'pointer' }}>
+                Date of Birth{getSortIcon('date_of_birth')}
+              </th>
+              <th onClick={() => handleSort('email')} style={{ cursor: 'pointer' }}>
+                Email{getSortIcon('email')}
+              </th>
+              <th onClick={() => handleSort('whatsapp_mobile')} style={{ cursor: 'pointer' }}>
+                WhatsApp Mobile{getSortIcon('whatsapp_mobile')}
+              </th>
+              <th onClick={() => handleSort('tajweed_level')} style={{ cursor: 'pointer' }}>
+                Level of Tajweed{getSortIcon('tajweed_level')}
+              </th>
               <th>Education</th>
               <th>Profession</th>
               <th>Previous Hifz</th>
-              <th>Time Slot</th>
-              <th>Registered At</th>
+              <th onClick={() => handleSort('slot')} style={{ cursor: 'pointer' }}>
+                Time Slot{getSortIcon('slot')}
+              </th>
+              <th onClick={() => handleSort('registered_at')} style={{ cursor: 'pointer' }}>
+                Registered At{getSortIcon('registered_at')}
+              </th>
             </tr>
           </thead>
           <tbody>
-            {filteredRegistrations.length === 0 ? (
+            {sortedRegistrations.length === 0 ? (
               <tr>
-                <td colSpan="11" className="no-data">No registrations found</td>
+                <td colSpan="11" className="no-data">{searchQuery ? 'No matching registrations found' : 'No registrations found'}</td>
               </tr>
             ) : (
-              filteredRegistrations.map((reg) => (
+              sortedRegistrations.map((reg) => (
                 <tr key={reg.id}>
                   <td>{reg.name}</td>
                   <td>{reg.fathers_name || '-'}</td>

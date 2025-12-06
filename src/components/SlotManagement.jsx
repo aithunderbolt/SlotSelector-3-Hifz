@@ -8,6 +8,8 @@ const SlotManagement = () => {
   const [error, setError] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [editingSlot, setEditingSlot] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortConfig, setSortConfig] = useState({ key: 'slot_order', direction: 'asc' });
   const [formData, setFormData] = useState({
     display_name: '',
     slot_order: '',
@@ -166,6 +168,57 @@ const SlotManagement = () => {
     return <div className="loading">Loading slots...</div>;
   }
 
+  // Apply search filter
+  let filteredSlots = slots;
+  if (searchQuery.trim()) {
+    const query = searchQuery.toLowerCase();
+    filteredSlots = slots.filter((slot) => {
+      return (
+        slot.display_name?.toLowerCase().includes(query) ||
+        slot.slot_order?.toString().includes(query) ||
+        slot.max_registrations?.toString().includes(query)
+      );
+    });
+  }
+
+  // Apply sorting
+  const sortedSlots = [...filteredSlots].sort((a, b) => {
+    let aValue, bValue;
+
+    switch (sortConfig.key) {
+      case 'slot_order':
+        aValue = a.slot_order || 0;
+        bValue = b.slot_order || 0;
+        break;
+      case 'display_name':
+        aValue = a.display_name?.toLowerCase() || '';
+        bValue = b.display_name?.toLowerCase() || '';
+        break;
+      case 'max_registrations':
+        aValue = a.max_registrations || 0;
+        bValue = b.max_registrations || 0;
+        break;
+      default:
+        return 0;
+    }
+
+    if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
+    if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
+    return 0;
+  });
+
+  const handleSort = (key) => {
+    setSortConfig((prev) => ({
+      key,
+      direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc',
+    }));
+  };
+
+  const getSortIcon = (key) => {
+    if (sortConfig.key !== key) return ' ↕';
+    return sortConfig.direction === 'asc' ? ' ↑' : ' ↓';
+  };
+
   return (
     <div className="slot-management">
       <div className="slot-management-header">
@@ -173,12 +226,22 @@ const SlotManagement = () => {
           <h2>Slot Management</h2>
           <p className="slot-info">Add, edit, or delete time slots. Changes will reflect immediately across the entire application.</p>
         </div>
-        <button
-          onClick={() => handleOpenModal()}
-          className="add-slot-btn"
-        >
-          + Add New Slot
-        </button>
+        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+          <input
+            type="text"
+            placeholder="Search slots..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="search-input"
+            style={{ padding: '8px 12px', borderRadius: '4px', border: '1px solid #ddd', minWidth: '250px' }}
+          />
+          <button
+            onClick={() => handleOpenModal()}
+            className="add-slot-btn"
+          >
+            + Add New Slot
+          </button>
+        </div>
       </div>
 
       {error && <div className="error-message">{error}</div>}
@@ -187,14 +250,25 @@ const SlotManagement = () => {
         <table className="slots-table">
           <thead>
             <tr>
-              <th>Slot Order</th>
-              <th>Display Name</th>
-              <th>Max Registrations</th>
+              <th onClick={() => handleSort('slot_order')} style={{ cursor: 'pointer' }}>
+                Slot Order{getSortIcon('slot_order')}
+              </th>
+              <th onClick={() => handleSort('display_name')} style={{ cursor: 'pointer' }}>
+                Display Name{getSortIcon('display_name')}
+              </th>
+              <th onClick={() => handleSort('max_registrations')} style={{ cursor: 'pointer' }}>
+                Max Registrations{getSortIcon('max_registrations')}
+              </th>
               <th>Actions</th>
             </tr>
           </thead>
           <tbody>
-            {slots.map((slot) => (
+            {sortedSlots.length === 0 ? (
+              <tr>
+                <td colSpan="4" className="no-data">{searchQuery ? 'No matching slots found' : 'No slots found'}</td>
+              </tr>
+            ) : (
+              sortedSlots.map((slot) => (
               <tr key={slot.id}>
                 <td data-label="Slot Order">
                   <span className="slot-order-badge">#{slot.slot_order}</span>
@@ -239,7 +313,8 @@ const SlotManagement = () => {
                   )}
                 </td>
               </tr>
-            ))}
+              ))
+            )}
           </tbody>
         </table>
       </div>
