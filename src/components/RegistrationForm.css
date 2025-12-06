@@ -69,11 +69,11 @@ textarea:disabled {
 }
 
 .country-code-select {
-  flex: 0 0 140px;
-  padding: 12px 8px;
+  flex: 0 0 240px;
+  padding: 12px;
   border: 2px solid #e0e0e0;
   border-radius: 8px;
-  font-size: 16px;
+  font-size: 14px;
   background-color: white;
   cursor: pointer;
   transition: border-color 0.3s;
