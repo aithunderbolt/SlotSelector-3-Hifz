@@ -1,0 +1,252 @@
+.attendance-tracking {
+  padding: 20px;
+}
+
+.attendance-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30px;
+}
+
+.attendance-header h2 {
+  margin: 0;
+  color: #333;
+}
+
+.attendance-tracking .add-btn {
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.attendance-tracking .add-btn:hover {
+  background-color: #45a049;
+}
+
+.attendance-form-container {
+  background: #f9f9f9;
+  padding: 20px;
+  border-radius: 8px;
+  margin-bottom: 30px;
+}
+
+.attendance-form-container h3 {
+  margin-top: 0;
+  color: #333;
+}
+
+.attendance-form {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 15px;
+}
+
+.attendance-form .form-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.attendance-form .form-group label {
+  margin-bottom: 5px;
+  font-weight: 500;
+  color: #555;
+}
+
+.attendance-form .form-group input,
+.attendance-form .form-group select,
+.attendance-form .form-group textarea {
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.attendance-form .form-group input:focus,
+.attendance-form .form-group select:focus,
+.attendance-form .form-group textarea:focus {
+  outline: none;
+  border-color: #4CAF50;
+}
+
+.attendance-form .form-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.attendance-form .submit-btn {
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.attendance-form .submit-btn:hover {
+  background-color: #45a049;
+}
+
+.attendance-form .cancel-btn {
+  background-color: #f44336;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.attendance-form .cancel-btn:hover {
+  background-color: #da190b;
+}
+
+.attendance-list {
+  margin-top: 20px;
+}
+
+.attendance-tracking .table-container {
+  overflow-x: auto;
+}
+
+.attendance-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: white;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.attendance-table th,
+.attendance-table td {
+  padding: 12px;
+  text-align: left;
+  border-bottom: 1px solid #ddd;
+}
+
+.attendance-table th {
+  background-color: #f5f5f5;
+  font-weight: 600;
+  color: #333;
+}
+
+.attendance-table tbody tr:hover {
+  background-color: #f9f9f9;
+}
+
+.attendance-table td.present {
+  color: #4CAF50;
+  font-weight: 500;
+}
+
+.attendance-table td.absent {
+  color: #f44336;
+  font-weight: 500;
+}
+
+.attendance-table td.on-leave {
+  color: #FF9800;
+  font-weight: 500;
+}
+
+.notes-cell {
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.edit-btn-small,
+.delete-btn-small {
+  padding: 6px 12px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.edit-btn-small {
+  background-color: #2196F3;
+  color: white;
+}
+
+.edit-btn-small:hover {
+  background-color: #0b7dda;
+}
+
+.delete-btn-small {
+  background-color: #f44336;
+  color: white;
+}
+
+.delete-btn-small:hover {
+  background-color: #da190b;
+}
+
+.attendance-tracking .no-data {
+  text-align: center;
+  padding: 40px;
+  color: #999;
+  font-size: 16px;
+}
+
+.attendance-tracking .error-message {
+  background-color: #ffebee;
+  color: #c62828;
+  padding: 12px;
+  border-radius: 4px;
+  margin-bottom: 20px;
+}
+
+.attendance-tracking .loading {
+  text-align: center;
+  padding: 40px;
+  color: #666;
+}
+
+.class-description-display {
+  margin-top: 8px;
+  padding: 10px;
+  background-color: #f0f8ff;
+  border-left: 3px solid #4CAF50;
+  border-radius: 4px;
+  font-size: 13px;
+  color: #555;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+@media (max-width: 768px) {
+  .form-row {
+    grid-template-columns: 1fr;
+  }
+  
+  .attendance-table {
+    font-size: 12px;
+  }
+  
+  .attendance-table th,
+  .attendance-table td {
+    padding: 8px;
+  }
+}

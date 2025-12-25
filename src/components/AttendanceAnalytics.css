@@ -1,0 +1,253 @@
+.attendance-analytics {
+  padding: 20px;
+}
+
+.attendance-analytics h2 {
+  margin: 0 0 30px 0;
+  color: #333;
+}
+
+.analytics-section {
+  margin-bottom: 40px;
+  background: white;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.analytics-section h3 {
+  margin-top: 0;
+  margin-bottom: 20px;
+  color: #333;
+  font-size: 20px;
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.section-header h3 {
+  margin: 0;
+}
+
+/* Totals Grid */
+.totals-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 20px;
+}
+
+.total-card {
+  background: #f9f9f9;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 20px;
+}
+
+.total-card h4 {
+  margin: 0 0 15px 0;
+  color: #333;
+  font-size: 18px;
+  border-bottom: 2px solid #4CAF50;
+  padding-bottom: 10px;
+}
+
+.total-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.analytics-section .stat-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+}
+
+.analytics-section .stat-label {
+  color: #666;
+  font-size: 14px;
+}
+
+.analytics-section .stat-value {
+  font-weight: 600;
+  font-size: 16px;
+  color: #333;
+}
+
+.analytics-section .stat-row.present .stat-value {
+  color: #4CAF50;
+}
+
+.analytics-section .stat-row.absent .stat-value {
+  color: #f44336;
+}
+
+.analytics-section .stat-row.on-leave .stat-value {
+  color: #FF9800;
+}
+
+.analytics-section .stat-row.attendance-rate {
+  margin-top: 5px;
+  padding-top: 10px;
+  border-top: 1px solid #ddd;
+}
+
+.analytics-section .stat-row.attendance-rate .stat-value {
+  color: #2196F3;
+  font-size: 18px;
+}
+
+/* Missing Entries */
+.missing-entries {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 15px;
+}
+
+.missing-card {
+  background: #fff3cd;
+  border: 1px solid #ffc107;
+  border-radius: 8px;
+  padding: 15px;
+}
+
+.missing-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+  color: #856404;
+  font-size: 16px;
+}
+
+.warning-icon {
+  font-size: 20px;
+}
+
+.missing-classes {
+  margin-top: 10px;
+}
+
+.missing-label {
+  color: #856404;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.missing-classes ul {
+  margin: 8px 0 0 0;
+  padding-left: 20px;
+}
+
+.missing-classes li {
+  color: #856404;
+  margin: 5px 0;
+}
+
+.success-message {
+  background: #d4edda;
+  color: #155724;
+  padding: 15px;
+  border-radius: 4px;
+  border: 1px solid #c3e6cb;
+  text-align: center;
+  font-size: 16px;
+}
+
+/* Table */
+.attendance-analytics .table-container {
+  overflow-x: auto;
+}
+
+.analytics-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: white;
+}
+
+.analytics-table th,
+.analytics-table td {
+  padding: 12px;
+  text-align: left;
+  border-bottom: 1px solid #ddd;
+}
+
+.analytics-table th {
+  background-color: #f5f5f5;
+  font-weight: 600;
+  color: #333;
+  position: sticky;
+  top: 0;
+}
+
+.analytics-table tbody tr:hover {
+  background-color: #f9f9f9;
+}
+
+.analytics-table td.present {
+  color: #4CAF50;
+  font-weight: 500;
+}
+
+.analytics-table td.absent {
+  color: #f44336;
+  font-weight: 500;
+}
+
+.analytics-table td.on-leave {
+  color: #FF9800;
+  font-weight: 500;
+}
+
+.analytics-table td.rate {
+  color: #2196F3;
+  font-weight: 500;
+}
+
+.attendance-analytics .no-data {
+  text-align: center;
+  padding: 40px;
+  color: #999;
+  font-size: 16px;
+}
+
+.attendance-analytics .error-message {
+  background-color: #ffebee;
+  color: #c62828;
+  padding: 12px;
+  border-radius: 4px;
+  margin-bottom: 20px;
+}
+
+.attendance-analytics .loading {
+  text-align: center;
+  padding: 40px;
+  color: #666;
+}
+
+@media (max-width: 768px) {
+  .section-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 15px;
+  }
+
+  .totals-grid,
+  .missing-entries {
+    grid-template-columns: 1fr;
+  }
+
+  .analytics-table {
+    font-size: 12px;
+  }
+
+  .analytics-table th,
+  .analytics-table td {
+    padding: 8px;
+  }
+}

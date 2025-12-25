@@ -5,6 +5,9 @@ import UserManagement from './UserManagement';
 import SlotManagement from './SlotManagement';
 import Settings from './Settings';
 import UserTransfer from './UserTransfer';
+import ClassManagement from './ClassManagement';
+import AttendanceTracking from './AttendanceTracking';
+import AttendanceAnalytics from './AttendanceAnalytics';
 import './AdminDashboard.css';
 
 const AdminDashboard = ({ onLogout, user }) => {
@@ -307,12 +310,20 @@ const AdminDashboard = ({ onLogout, user }) => {
           Registrations
         </button>
         {isSlotAdmin && (
-          <button
-            className={`tab ${activeTab === 'transfer' ? 'active' : ''}`}
-            onClick={() => setActiveTab('transfer')}
-          >
-            User Transfer
-          </button>
+          <>
+            <button
+              className={`tab ${activeTab === 'attendance' ? 'active' : ''}`}
+              onClick={() => setActiveTab('attendance')}
+            >
+              Attendance
+            </button>
+            <button
+              className={`tab ${activeTab === 'transfer' ? 'active' : ''}`}
+              onClick={() => setActiveTab('transfer')}
+            >
+              User Transfer
+            </button>
+          </>
         )}
         {isSuperAdmin && (
           <>
@@ -327,6 +338,18 @@ const AdminDashboard = ({ onLogout, user }) => {
               onClick={() => setActiveTab('slots')}
             >
               Slot Management
+            </button>
+            <button
+              className={`tab ${activeTab === 'classes' ? 'active' : ''}`}
+              onClick={() => setActiveTab('classes')}
+            >
+              Classes
+            </button>
+            <button
+              className={`tab ${activeTab === 'analytics' ? 'active' : ''}`}
+              onClick={() => setActiveTab('analytics')}
+            >
+              Attendance Analytics
             </button>
             <button
               className={`tab ${activeTab === 'settings' ? 'active' : ''}`}
@@ -488,6 +511,18 @@ const AdminDashboard = ({ onLogout, user }) => {
 
       {activeTab === 'settings' && isSuperAdmin && (
         <Settings />
+      )}
+
+      {activeTab === 'classes' && isSuperAdmin && (
+        <ClassManagement />
+      )}
+
+      {activeTab === 'analytics' && isSuperAdmin && (
+        <AttendanceAnalytics />
+      )}
+
+      {activeTab === 'attendance' && isSlotAdmin && (
+        <AttendanceTracking user={user} />
       )}
 
       {activeTab === 'transfer' && isSlotAdmin && (
