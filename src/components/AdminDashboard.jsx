@@ -69,6 +69,7 @@ const AdminDashboard = ({ onLogout, user }) => {
         return dateB - dateA;
       });
       
+
       // For slot admins, use all registrations for counts but filtered data for table
       setRegistrations(isSlotAdmin ? { detailed: detailedRegistrations, all: allRegistrations } : detailedRegistrations);
       setError(null);
@@ -80,6 +81,7 @@ const AdminDashboard = ({ onLogout, user }) => {
     }
   };
 
+  
   useEffect(() => {
     fetchData();
 
