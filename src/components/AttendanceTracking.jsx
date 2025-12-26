@@ -91,19 +91,34 @@ const AttendanceTracking = ({ user }) => {
       return;
     }
 
+    // Validate user object
+    if (!user?.id) {
+      setError('User ID is missing. Please log out and log in again.');
+      console.error('User object missing id:', user);
+      return;
+    }
+    if (!user?.assigned_slot_id) {
+      setError('Assigned slot ID is missing. Please contact administrator.');
+      console.error('User object missing assigned_slot_id:', user);
+      return;
+    }
+
     try {
       const attendanceData = {
         class_id: formData.class_id,
         slot_id: user.assigned_slot_id,
         admin_user_id: user.id,
         attendance_date: formData.attendance_date,
-        total_students: parseInt(formData.total_students),
-        students_present: parseInt(formData.students_present),
-        students_absent: parseInt(formData.students_absent),
-        students_on_leave: parseInt(formData.students_on_leave),
-        notes: formData.notes.trim()
+        total_students: parseInt(formData.total_students) || 0,
+        students_present: parseInt(formData.students_present) || 0,
+        students_absent: parseInt(formData.students_absent) || 0,
+        students_on_leave: parseInt(formData.students_on_leave) || 0,
+        notes: formData.notes.trim() || ''
       };
 
+      console.log('User object:', user);
+      console.log('Submitting attendance data:', attendanceData);
+      
       if (editingRecord) {
         await pb.collection('attendance').update(editingRecord.id, attendanceData);
       } else {
@@ -125,8 +140,10 @@ const AttendanceTracking = ({ user }) => {
       setError(null);
       fetchData();
     } catch (err) {
-      setError(err.message);
       console.error('Error saving attendance:', err);
+      console.error('Error details:', err.data);
+      console.error('Error response:', err.response);
+      setError(err.message + (err.data ? ': ' + JSON.stringify(err.data) : ''));
     }
   };
 
