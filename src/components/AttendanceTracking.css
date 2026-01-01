@@ -170,6 +170,145 @@
   white-space: nowrap;
 }
 
+.upload-error {
+  color: #dc3545;
+  font-size: 0.875rem;
+  margin-top: 0.25rem;
+}
+
+.attachment-preview,
+.existing-attachments {
+  margin-top: 0.5rem;
+  padding: 0.5rem;
+  background: #f8f9fa;
+  border-radius: 4px;
+}
+
+.existing-attachments {
+  margin-top: 0.75rem;
+  background: #e7f3ff;
+}
+
+.attachment-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem;
+  margin-bottom: 0.25rem;
+  background: white;
+  border-radius: 4px;
+  border: 1px solid #dee2e6;
+}
+
+.attachment-item span {
+  font-size: 0.875rem;
+  color: #495057;
+}
+
+.attachment-preview-img {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.attachment-preview-img img {
+  border-radius: 4px;
+  border: 1px solid #dee2e6;
+}
+
+.remove-file-btn {
+  background: #dc3545;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 0.25rem 0.5rem;
+  cursor: pointer;
+  font-size: 0.875rem;
+}
+
+.remove-file-btn:hover {
+  background: #c82333;
+}
+
+.files-cell {
+  font-size: 0.875rem;
+  color: #6c757d;
+}
+
+.image-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  cursor: pointer;
+}
+
+.image-modal-content {
+  background: white;
+  padding: 1rem;
+  border-radius: 8px;
+  max-width: 90vw;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  cursor: default;
+}
+
+.image-modal-content img {
+  max-width: 100%;
+  max-height: 70vh;
+  object-fit: contain;
+  border-radius: 4px;
+}
+
+.image-modal-close {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  background: #dc3545;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.image-modal-close:hover {
+  background: #c82333;
+}
+
+.image-modal-info {
+  margin-top: 1rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.image-modal-info strong {
+  font-size: 1rem;
+  color: #333;
+}
+
+.image-modal-info span {
+  font-size: 0.875rem;
+  color: #6c757d;
+}
+
 .action-buttons {
   display: flex;
   gap: 8px;

@@ -13,12 +13,17 @@ const AttendanceTracking = ({ user }) => {
   const [formData, setFormData] = useState({
     class_id: '',
     attendance_date: new Date().toISOString().split('T')[0],
+    attendance_time: '',
     total_students: '',
     students_present: '',
     students_absent: '',
     students_on_leave: '',
     notes: ''
   });
+  const [attachments, setAttachments] = useState([]);
+  const [uploadError, setUploadError] = useState(null);
+  const [attachmentPreviews, setAttachmentPreviews] = useState([]);
+  const [viewingImage, setViewingImage] = useState(null);
 
   const fetchData = async () => {
     try {
@@ -84,11 +89,113 @@ const AttendanceTracking = ({ user }) => {
     return true;
   };
 
+  const handleFileChange = (e) => {
+    const files = Array.from(e.target.files);
+    setUploadError(null);
+
+    // Validate file count
+    if (files.length + attachments.length > 3) {
+      setUploadError('Maximum 3 files allowed');
+      return;
+    }
+
+    // Validate each file
+    for (const file of files) {
+      if (!file.type.startsWith('image/')) {
+        setUploadError('Only image files (jpg, png, etc.) are allowed');
+        return;
+      }
+      if (file.size > 200 * 1024) {
+        setUploadError(`File ${file.name} exceeds 200KB limit`);
+        return;
+      }
+    }
+
+    // Create preview URLs for the new files
+    const newPreviews = files.map(file => URL.createObjectURL(file));
+    setAttachmentPreviews(prev => [...prev, ...newPreviews]);
+    setAttachments(prev => [...prev, ...files]);
+  };
+
+  const removeAttachment = (index) => {
+    // Revoke the preview URL to free memory
+    URL.revokeObjectURL(attachmentPreviews[index]);
+    setAttachmentPreviews(prev => prev.filter((_, i) => i !== index));
+    setAttachments(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleDeleteAttachment = async (record, fileIndex) => {
+    if (!confirm('Delete this file?')) return;
+
+    try {
+      const attachments = record.attachments || [];
+      const updatedAttachments = attachments.filter((_, i) => i !== fileIndex);
+      
+      await pb.collection('attendance').update(record.id, { 
+        attachments: updatedAttachments 
+      });
+      
+      // Update the editing record state to reflect the deletion
+      if (editingRecord && editingRecord.id === record.id) {
+        setEditingRecord({ ...editingRecord, attachments: updatedAttachments });
+      }
+      
+      fetchData();
+    } catch (err) {
+      setError(err.message);
+      console.error('Error deleting attachment:', err);
+    }
+  };
+
+  const uploadFiles = async (attendanceId) => {
+    const uploadedFiles = [];
+    
+    for (const file of attachments) {
+      try {
+        // Convert file to base64
+        const base64 = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result);
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+        
+        uploadedFiles.push({ 
+          name: file.name, 
+          data: base64,
+          size: file.size,
+          type: file.type
+        });
+      } catch (err) {
+        console.error('Failed to process file:', file.name, err);
+        throw new Error(`Failed to process ${file.name}: ${err.message}`);
+      }
+    }
+    
+    return uploadedFiles;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     
     if (!validateCounts()) {
       return;
+    }
+
+    // Validate file attachments for both create and edit modes
+    if (!editingRecord) {
+      // Creating new record - must have attachments
+      if (attachments.length === 0) {
+        setError('At least one file attachment is required');
+        return;
+      }
+    } else {
+      // Editing existing record - must have at least 1 file total (existing + new)
+      const totalFiles = (editingRecord.attachments?.length || 0) + attachments.length;
+      if (totalFiles === 0) {
+        setError('At least one file attachment is required. Cannot save without any files.');
+        return;
+      }
     }
 
     // Validate user object
@@ -103,41 +210,92 @@ const AttendanceTracking = ({ user }) => {
       return;
     }
 
+    // Check for existing record when creating new
+    if (!editingRecord) {
+      try {
+        const existingRecord = await pb.collection('attendance').getFirstListItem(
+          `class_id = "${formData.class_id}" && slot_id = "${user.assigned_slot_id}" && attendance_date = "${formData.attendance_date}"`
+        );
+        if (existingRecord) {
+          setError('Attendance record already exists for this class and date. Please edit the existing record instead.');
+          return;
+        }
+      } catch (err) {
+        // No existing record found, continue
+        if (err.status !== 404) {
+          throw err;
+        }
+      }
+    }
+
     try {
       const attendanceData = {
         class_id: formData.class_id,
         slot_id: user.assigned_slot_id,
         admin_user_id: user.id,
         attendance_date: formData.attendance_date,
-        total_students: parseInt(formData.total_students) || 0,
-        students_present: parseInt(formData.students_present) || 0,
-        students_absent: parseInt(formData.students_absent) || 0,
-        students_on_leave: parseInt(formData.students_on_leave) || 0,
-        notes: formData.notes.trim() || ''
+        attendance_time: formData.attendance_time || null,
+        total_students: parseInt(formData.total_students),
+        students_present: parseInt(formData.students_present),
+        students_absent: parseInt(formData.students_absent),
+        students_on_leave: parseInt(formData.students_on_leave),
+        notes: formData.notes.trim()
       };
 
       console.log('User object:', user);
       console.log('Submitting attendance data:', attendanceData);
       
       if (editingRecord) {
-        await pb.collection('attendance').update(editingRecord.id, attendanceData);
+        let updatedAttachments = editingRecord.attachments || [];
+        
+        if (attachments.length > 0) {
+          try {
+            const uploadedFiles = await uploadFiles(editingRecord.id);
+            updatedAttachments = [...updatedAttachments, ...uploadedFiles];
+          } catch (uploadErr) {
+            setError(`File processing failed: ${uploadErr.message}`);
+            return;
+          }
+        }
+
+        await pb.collection('attendance').update(editingRecord.id, { 
+          ...attendanceData, 
+          attachments: updatedAttachments
+        });
       } else {
-        await pb.collection('attendance').create(attendanceData);
+        // Process files first
+        let uploadedFiles = [];
+        try {
+          uploadedFiles = await uploadFiles(null);
+        } catch (uploadErr) {
+          setError(`File processing failed: ${uploadErr.message}`);
+          return;
+        }
+        
+        // Create record with attachments
+        await pb.collection('attendance').create({ 
+          ...attendanceData, 
+          attachments: uploadedFiles 
+        });
       }
 
       setFormData({
         class_id: '',
         attendance_date: new Date().toISOString().split('T')[0],
+        attendance_time: '',
         total_students: '',
         students_present: '',
         students_absent: '',
         students_on_leave: '',
         notes: ''
       });
+      setAttachments([]);
+      setAttachmentPreviews([]);
       setShowForm(false);
       setEditingRecord(null);
       setSelectedClass(null);
       setError(null);
+      setUploadError(null);
       fetchData();
     } catch (err) {
       console.error('Error saving attendance:', err);
@@ -154,12 +312,15 @@ const AttendanceTracking = ({ user }) => {
     setFormData({
       class_id: record.class_id,
       attendance_date: record.attendance_date,
+      attendance_time: record.attendance_time || '',
       total_students: record.total_students.toString(),
       students_present: record.students_present.toString(),
       students_absent: record.students_absent.toString(),
       students_on_leave: record.students_on_leave.toString(),
       notes: record.notes || ''
     });
+    setAttachments([]);
+    setAttachmentPreviews([]);
     setShowForm(true);
   };
 
@@ -178,19 +339,26 @@ const AttendanceTracking = ({ user }) => {
   };
 
   const handleCancel = () => {
+    // Clean up preview URLs
+    attachmentPreviews.forEach(url => URL.revokeObjectURL(url));
+    
     setShowForm(false);
     setEditingRecord(null);
     setSelectedClass(null);
     setFormData({
       class_id: '',
       attendance_date: new Date().toISOString().split('T')[0],
+      attendance_time: '',
       total_students: '',
       students_present: '',
       students_absent: '',
       students_on_leave: '',
       notes: ''
     });
+    setAttachments([]);
+    setAttachmentPreviews([]);
     setError(null);
+    setUploadError(null);
   };
 
   const formatDate = (dateStr) => {
@@ -256,6 +424,19 @@ const AttendanceTracking = ({ user }) => {
                   value={formData.attendance_date}
                   onChange={handleInputChange}
                   required
+                />
+              </div>
+            </div>
+
+            <div className="form-row">
+              <div className="form-group">
+                <label htmlFor="attendance_time">Time</label>
+                <input
+                  type="time"
+                  id="attendance_time"
+                  name="attendance_time"
+                  value={formData.attendance_time}
+                  onChange={handleInputChange}
                 />
               </div>
             </div>
@@ -328,6 +509,57 @@ const AttendanceTracking = ({ user }) => {
               />
             </div>
 
+            <div className="form-group">
+              <label htmlFor="attachments">
+                File Attachments * (1-3 images, max 200KB each)
+              </label>
+              <input
+                type="file"
+                id="attachments"
+                accept="image/*"
+                multiple
+                onChange={handleFileChange}
+              />
+              {uploadError && <div className="upload-error">{uploadError}</div>}
+              
+              {attachments.length > 0 && (
+                <div className="attachment-preview">
+                  {attachments.map((file, index) => (
+                    <div key={index} className="attachment-item">
+                      <div className="attachment-preview-img">
+                        <img src={attachmentPreviews[index]} alt={file.name} style={{maxWidth: '100px', maxHeight: '100px', objectFit: 'cover', borderRadius: '4px'}} />
+                        <span>{file.name} ({Math.round(file.size / 1024)}KB)</span>
+                      </div>
+                      <button type="button" onClick={() => removeAttachment(index)} className="remove-file-btn">
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {editingRecord && editingRecord.attachments && editingRecord.attachments.length > 0 && (
+                <div className="existing-attachments">
+                  <strong>Existing files:</strong>
+                  {editingRecord.attachments.map((file, index) => (
+                    <div key={index} className="attachment-item">
+                      <div className="attachment-preview-img">
+                        <img src={file.data} alt={file.name} style={{maxWidth: '100px', maxHeight: '100px'}} />
+                        <span>{file.name} ({Math.round(file.size / 1024)}KB)</span>
+                      </div>
+                      <button 
+                        type="button" 
+                        onClick={() => handleDeleteAttachment(editingRecord, index)} 
+                        className="remove-file-btn"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
             <div className="form-actions">
               <button type="submit" className="submit-btn">
                 {editingRecord ? 'Update Record' : 'Save Record'}
@@ -354,6 +586,7 @@ const AttendanceTracking = ({ user }) => {
                   <th>Present</th>
                   <th>Absent</th>
                   <th>On Leave</th>
+                  <th>Files</th>
                   <th>Notes</th>
                   <th>Actions</th>
                 </tr>
@@ -367,6 +600,24 @@ const AttendanceTracking = ({ user }) => {
                     <td className="present">{record.students_present}</td>
                     <td className="absent">{record.students_absent}</td>
                     <td className="on-leave">{record.students_on_leave}</td>
+                    <td className="files-cell">
+                      {record.attachments && record.attachments.length > 0 ? (
+                        <div className="files-preview">
+                          {record.attachments.map((file, idx) => (
+                            <img 
+                              key={idx}
+                              src={file.data} 
+                              alt={file.name}
+                              title={`Click to view ${file.name}`}
+                              style={{width: '40px', height: '40px', objectFit: 'cover', marginRight: '4px', borderRadius: '4px', cursor: 'pointer', border: '1px solid #dee2e6'}}
+                              onClick={() => setViewingImage(file)}
+                            />
+                          ))}
+                        </div>
+                      ) : (
+                        '-'
+                      )}
+                    </td>
                     <td className="notes-cell">{record.notes || '-'}</td>
                     <td>
                       <div className="action-buttons">
@@ -385,6 +636,19 @@ const AttendanceTracking = ({ user }) => {
           </div>
         )}
       </div>
+
+      {viewingImage && (
+        <div className="image-modal" onClick={() => setViewingImage(null)}>
+          <div className="image-modal-content" onClick={(e) => e.stopPropagation()}>
+            <button className="image-modal-close" onClick={() => setViewingImage(null)}>×</button>
+            <img src={viewingImage.data} alt={viewingImage.name} />
+            <div className="image-modal-info">
+              <strong>{viewingImage.name}</strong>
+              <span>{Math.round(viewingImage.size / 1024)}KB</span>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
