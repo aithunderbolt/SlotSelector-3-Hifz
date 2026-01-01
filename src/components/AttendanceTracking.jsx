@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { pb } from '../lib/supabaseClient';
 import './AttendanceTracking.css';
 
@@ -24,23 +24,43 @@ const AttendanceTracking = ({ user }) => {
   const [uploadError, setUploadError] = useState(null);
   const [attachmentPreviews, setAttachmentPreviews] = useState([]);
   const [viewingImage, setViewingImage] = useState(null);
+  
+  // Cache and debounce refs
+  const cacheRef = useRef({ timestamp: 0, data: null });
+  const refetchTimeoutRef = useRef(null);
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async (forceRefresh = false) => {
     try {
       setLoading(true);
+      
+      const now = Date.now();
+      const cacheAge = now - cacheRef.current.timestamp;
+      const useCache = !forceRefresh && cacheAge < 3000 && cacheRef.current.data;
 
-      // Fetch classes
-      const classesData = await pb.collection('classes').getFullList({
-        sort: 'name',
-      });
+      if (useCache) {
+        setClasses(cacheRef.current.data.classes);
+        setAttendanceRecords(cacheRef.current.data.attendance);
+        setLoading(false);
+        return;
+      }
+
+      // Fetch data in parallel with pagination
+      const [classesData, attendanceData] = await Promise.all([
+        pb.collection('classes').getList(1, 50, { sort: 'name' }).then(res => res.items),
+        pb.collection('attendance').getList(1, 100, {
+          filter: `slot_id = "${user.assigned_slot_id}"`,
+          expand: 'class_id',
+          sort: '-attendance_date',
+        }).then(res => res.items)
+      ]);
+      
+      // Update cache
+      cacheRef.current = {
+        timestamp: now,
+        data: { classes: classesData, attendance: attendanceData }
+      };
+      
       setClasses(classesData || []);
-
-      // Fetch attendance records for this slot admin
-      const attendanceData = await pb.collection('attendance').getFullList({
-        filter: `slot_id = "${user.assigned_slot_id}"`,
-        expand: 'class_id',
-        sort: '-attendance_date',
-      });
       setAttendanceRecords(attendanceData || []);
       setError(null);
     } catch (err) {
@@ -49,19 +69,30 @@ const AttendanceTracking = ({ user }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user.assigned_slot_id]);
+
+  // Debounced refetch
+  const debouncedRefetch = useCallback(() => {
+    if (refetchTimeoutRef.current) {
+      clearTimeout(refetchTimeoutRef.current);
+    }
+    refetchTimeoutRef.current = setTimeout(() => {
+      fetchData(true);
+    }, 1000);
+  }, [fetchData]);
 
   useEffect(() => {
-    fetchData();
+    fetchData(true);
 
-    pb.collection('attendance').subscribe('*', () => {
-      fetchData();
-    });
+    pb.collection('attendance').subscribe('*', debouncedRefetch);
 
     return () => {
+      if (refetchTimeoutRef.current) {
+        clearTimeout(refetchTimeoutRef.current);
+      }
       pb.collection('attendance').unsubscribe();
     };
-  }, [user.assigned_slot_id]);
+  }, [user.assigned_slot_id, fetchData, debouncedRefetch]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -140,7 +171,7 @@ const AttendanceTracking = ({ user }) => {
         setEditingRecord({ ...editingRecord, attachments: updatedAttachments });
       }
       
-      fetchData();
+      fetchData(true);
     } catch (err) {
       setError(err.message);
       console.error('Error deleting attachment:', err);
@@ -296,7 +327,7 @@ const AttendanceTracking = ({ user }) => {
       setSelectedClass(null);
       setError(null);
       setUploadError(null);
-      fetchData();
+      fetchData(true);
     } catch (err) {
       console.error('Error saving attendance:', err);
       console.error('Error details:', err.data);
@@ -331,7 +362,7 @@ const AttendanceTracking = ({ user }) => {
 
     try {
       await pb.collection('attendance').delete(recordId);
-      fetchData();
+      fetchData(true);
     } catch (err) {
       setError(err.message);
       console.error('Error deleting attendance:', err);

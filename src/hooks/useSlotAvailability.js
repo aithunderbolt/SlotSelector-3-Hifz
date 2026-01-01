@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { pb } from '../lib/supabaseClient';
 
 export const useSlotAvailability = (userTajweedLevel = null) => {
@@ -6,23 +6,51 @@ export const useSlotAvailability = (userTajweedLevel = null) => {
   const [allSlots, setAllSlots] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  
+  // Cache to avoid unnecessary refetches
+  const cacheRef = useRef({
+    slots: null,
+    users: null,
+    registrations: null,
+    timestamp: 0
+  });
+  
+  // Debounce refetch to avoid multiple rapid calls
+  const refetchTimeoutRef = useRef(null);
 
-  const fetchSlotCounts = async () => {
+  const fetchSlotCounts = useCallback(async (forceRefresh = false) => {
     try {
       setLoading(true);
+      
+      const now = Date.now();
+      const cacheAge = now - cacheRef.current.timestamp;
+      const useCache = !forceRefresh && cacheAge < 5000; // 5 second cache
 
-      // Fetch all slots with their max_registrations
-      const slotsData = await pb.collection('slots').getFullList({
-        sort: 'slot_order',
-      });
+      // Fetch all data in parallel for better performance
+      const [slotsData, usersData, registrationsData] = await Promise.all([
+        useCache && cacheRef.current.slots 
+          ? Promise.resolve(cacheRef.current.slots)
+          : pb.collection('slots').getList(1, 50, { sort: 'slot_order' }).then(res => res.items),
+        useCache && cacheRef.current.users
+          ? Promise.resolve(cacheRef.current.users)
+          : pb.collection('users').getList(1, 50, {
+              filter: 'role = "slot_admin"',
+              fields: 'id,assigned_slot_id,tajweed_beginner,tajweed_intermediate,tajweed_advanced',
+            }).then(res => res.items),
+        useCache && cacheRef.current.registrations
+          ? Promise.resolve(cacheRef.current.registrations)
+          : pb.collection('registrations').getList(1, 500, { fields: 'id,slot_id' }).then(res => res.items)
+      ]);
+
+      // Update cache
+      cacheRef.current = {
+        slots: slotsData,
+        users: usersData,
+        registrations: registrationsData,
+        timestamp: now
+      };
 
       setAllSlots(slotsData);
-
-      // Fetch all users (slot admins) with their Tajweed level settings
-      const usersData = await pb.collection('users').getFullList({
-        filter: 'role = "slot_admin"',
-        fields: 'id,assigned_slot_id,tajweed_beginner,tajweed_intermediate,tajweed_advanced',
-      });
 
       // Create a map of slot_id to user's Tajweed settings
       const slotTajweedSettings = {};
@@ -34,11 +62,6 @@ export const useSlotAvailability = (userTajweedLevel = null) => {
             advanced: user.tajweed_advanced || false,
           };
         }
-      });
-
-      // Fetch registrations
-      const registrationsData = await pb.collection('registrations').getFullList({
-        fields: 'id,slot_id',
       });
 
       // Count registrations per slot
@@ -86,26 +109,35 @@ export const useSlotAvailability = (userTajweedLevel = null) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [userTajweedLevel]);
+
+  // Debounced refetch for subscriptions
+  const debouncedRefetch = useCallback(() => {
+    if (refetchTimeoutRef.current) {
+      clearTimeout(refetchTimeoutRef.current);
+    }
+    refetchTimeoutRef.current = setTimeout(() => {
+      fetchSlotCounts(true);
+    }, 500); // Wait 500ms before refetching
+  }, [fetchSlotCounts]);
 
   useEffect(() => {
-    fetchSlotCounts();
+    fetchSlotCounts(true);
 
-    // Subscribe to registrations changes
-    pb.collection('registrations').subscribe('*', () => {
-      fetchSlotCounts();
-    });
+    // Subscribe to registrations changes with debouncing
+    pb.collection('registrations').subscribe('*', debouncedRefetch);
 
-    // Subscribe to slots changes
-    pb.collection('slots').subscribe('*', () => {
-      fetchSlotCounts();
-    });
+    // Subscribe to slots changes with debouncing
+    pb.collection('slots').subscribe('*', debouncedRefetch);
 
     return () => {
+      if (refetchTimeoutRef.current) {
+        clearTimeout(refetchTimeoutRef.current);
+      }
       pb.collection('registrations').unsubscribe();
       pb.collection('slots').unsubscribe();
     };
-  }, [userTajweedLevel]);
+  }, [userTajweedLevel, fetchSlotCounts, debouncedRefetch]);
 
-  return { availableSlots, allSlots, loading, error, refetch: fetchSlotCounts };
+  return { availableSlots, allSlots, loading, error, refetch: () => fetchSlotCounts(true) };
 };

@@ -203,12 +203,12 @@ const RegistrationForm = () => {
   useEffect(() => {
     const fetchFormTitle = async () => {
       try {
-        const settings = await pb.collection('settings').getFullList({
+        const settings = await pb.collection('settings').getList(1, 1, {
           filter: 'key = "form_title"',
         });
 
-        if (settings && settings.length > 0) {
-          setFormTitle(settings[0].value);
+        if (settings && settings.items.length > 0) {
+          setFormTitle(settings.items[0].value);
         }
       } catch (err) {
         console.error('Error fetching form title:', err);
@@ -324,18 +324,23 @@ const RegistrationForm = () => {
     setSubmitStatus(null);
 
     try {
-      // Check if WhatsApp number already exists
-      const existingRegistrations = await pb.collection('registrations').getFullList({
-        filter: `whatsapp_mobile = "${formData.whatsapp_mobile}"`,
-      });
-
-      if (existingRegistrations && existingRegistrations.length > 0) {
+      // Check if WhatsApp number already exists - use getFirstListItem for better performance
+      try {
+        await pb.collection('registrations').getFirstListItem(
+          `whatsapp_mobile = "${formData.whatsapp_mobile}"`
+        );
+        // If we get here, record exists
         setSubmitStatus({
           type: 'error',
           message: 'This WhatsApp number is already registered.',
         });
         setSubmitting(false);
         return;
+      } catch (err) {
+        // 404 means no existing record, which is what we want
+        if (err.status !== 404) {
+          throw err;
+        }
       }
 
       await pb.collection('registrations').create({

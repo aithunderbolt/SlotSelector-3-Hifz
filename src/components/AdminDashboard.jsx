@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { pb } from '../lib/supabaseClient';
 import * as XLSX from 'xlsx';
 import UserManagement from './UserManagement';
@@ -24,54 +24,94 @@ const AdminDashboard = ({ onLogout, user }) => {
   const isSlotAdmin = user.role === 'slot_admin';
   const isSuperAdmin = user.role === 'super_admin';
   const userSlotId = user.assigned_slot_id;
+  
+  // Cache and debounce refs
+  const cacheRef = useRef({ timestamp: 0, data: null });
+  const refetchTimeoutRef = useRef(null);
+  const searchTimeoutRef = useRef(null);
+  const [debouncedSearch, setDebouncedSearch] = useState('');
 
-  const fetchData = async () => {
+  // Debounce search input
+  useEffect(() => {
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+    searchTimeoutRef.current = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+    }, 300);
+    
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, [searchQuery]);
+
+  const fetchData = useCallback(async (forceRefresh = false) => {
     try {
       setLoading(true);
+      
+      const now = Date.now();
+      const cacheAge = now - cacheRef.current.timestamp;
+      const useCache = !forceRefresh && cacheAge < 5000 && cacheRef.current.data;
+
+      if (useCache) {
+        setFormTitle(cacheRef.current.data.formTitle);
+        setSlots(cacheRef.current.data.slots);
+        setRegistrations(cacheRef.current.data.registrations);
+        setLoading(false);
+        return;
+      }
 
       // Fetch form title from settings
-      const titleSettings = await pb.collection('settings').getFullList({
+      const titleSettings = await pb.collection('settings').getList(1, 1, {
         filter: 'key = "form_title"',
       });
-      if (titleSettings.length > 0) {
-        setFormTitle(titleSettings[0].value);
-      }
+      const title = titleSettings.items.length > 0 ? titleSettings.items[0].value : 'Hifz Registration Form';
 
-      // Fetch slots with their max_registrations
-      const slotsData = await pb.collection('slots').getFullList({
+      // Fetch slots with pagination
+      const slotsData = await pb.collection('slots').getList(1, 50, {
         sort: 'slot_order',
-      });
+      }).then(res => res.items);
 
-      setSlots(slotsData);
-
-      // Fetch all registrations for slot counts (both super admin and slot admin need this)
-      const allRegistrations = await pb.collection('registrations').getFullList({
-        fields: 'id,slot_id',
-      });
-
-      // Fetch detailed registrations
-      let detailedRegistrations;
+      // Fetch registrations in parallel
+      let detailedRegistrations, allRegistrations;
+      
       if (isSlotAdmin) {
-        detailedRegistrations = await pb.collection('registrations').getFullList({
-          filter: `slot_id = "${userSlotId}"`,
-          expand: 'slot_id',
-        });
+        [detailedRegistrations, allRegistrations] = await Promise.all([
+          pb.collection('registrations').getList(1, 200, {
+            filter: `slot_id = "${userSlotId}"`,
+            expand: 'slot_id',
+            sort: '-registered_at',
+          }).then(res => res.items),
+          pb.collection('registrations').getList(1, 500, {
+            fields: 'id,slot_id',
+          }).then(res => res.items)
+        ]);
       } else {
-        detailedRegistrations = await pb.collection('registrations').getFullList({
+        detailedRegistrations = await pb.collection('registrations').getList(1, 500, {
           expand: 'slot_id',
-        });
+          sort: '-registered_at',
+        }).then(res => res.items);
       }
-      
-      // Sort by registered_at date (newest first)
-      detailedRegistrations.sort((a, b) => {
-        const dateA = a.registered_at ? new Date(a.registered_at) : new Date(0);
-        const dateB = b.registered_at ? new Date(b.registered_at) : new Date(0);
-        return dateB - dateA;
-      });
-      
 
-      // For slot admins, use all registrations for counts but filtered data for table
-      setRegistrations(isSlotAdmin ? { detailed: detailedRegistrations, all: allRegistrations } : detailedRegistrations);
+      const registrationsData = isSlotAdmin 
+        ? { detailed: detailedRegistrations, all: allRegistrations }
+        : detailedRegistrations;
+
+      // Update cache
+      cacheRef.current = {
+        timestamp: now,
+        data: {
+          formTitle: title,
+          slots: slotsData,
+          registrations: registrationsData
+        }
+      };
+
+      setFormTitle(title);
+      setSlots(slotsData);
+      setRegistrations(registrationsData);
       setError(null);
     } catch (err) {
       setError(err.message);
@@ -79,36 +119,44 @@ const AdminDashboard = ({ onLogout, user }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [isSlotAdmin, userSlotId]);
 
-  
+  // Debounced refetch for subscriptions
+  const debouncedRefetch = useCallback(() => {
+    if (refetchTimeoutRef.current) {
+      clearTimeout(refetchTimeoutRef.current);
+    }
+    refetchTimeoutRef.current = setTimeout(() => {
+      fetchData(true);
+    }, 1000);
+  }, [fetchData]);
+
   useEffect(() => {
-    fetchData();
+    fetchData(true);
 
     // Subscribe to registrations changes
-    pb.collection('registrations').subscribe('*', () => {
-      fetchData();
-    });
+    pb.collection('registrations').subscribe('*', debouncedRefetch);
 
     // Subscribe to slots changes
-    pb.collection('slots').subscribe('*', () => {
-      fetchData();
-    });
+    pb.collection('slots').subscribe('*', debouncedRefetch);
 
     return () => {
+      if (refetchTimeoutRef.current) {
+        clearTimeout(refetchTimeoutRef.current);
+      }
       pb.collection('registrations').unsubscribe();
       pb.collection('slots').unsubscribe();
     };
-  }, []);
+  }, [fetchData, debouncedRefetch]);
 
   // Refetch data when switching to registrations tab
   useEffect(() => {
     if (activeTab === 'registrations') {
-      fetchData();
+      fetchData(true);
     }
-  }, [activeTab]);
+  }, [activeTab, fetchData]);
 
-  const getSlotCounts = () => {
+  const getSlotCounts = useMemo(() => {
     const counts = {};
     slots.forEach((slot) => {
       counts[slot.id] = 0;
@@ -123,44 +171,49 @@ const AdminDashboard = ({ onLogout, user }) => {
       }
     });
     return counts;
-  };
+  }, [slots, registrations, isSlotAdmin]);
 
-  const slotCounts = getSlotCounts();
+  const slotCounts = getSlotCounts;
 
-  // Helper function to get slot display name
-  const getSlotDisplayName = (slotId) => {
+  // Helper function to get slot display name - memoized
+  const getSlotDisplayName = useCallback((slotId) => {
     const slot = slots.find(s => s.id === slotId);
     return slot ? slot.display_name : 'Unknown Slot';
-  };
+  }, [slots]);
 
   // Use detailed registrations for slot admin, regular for super admin
-  const detailedRegistrations = isSlotAdmin ? (registrations.detailed || []) : (Array.isArray(registrations) ? registrations : []);
+  const detailedRegistrations = useMemo(() => 
+    isSlotAdmin ? (registrations.detailed || []) : (Array.isArray(registrations) ? registrations : []),
+    [isSlotAdmin, registrations]
+  );
   
-  let filteredRegistrations = slotFilter === 'all'
-    ? detailedRegistrations
-    : detailedRegistrations.filter((reg) => reg.slot_id === slotFilter);
+  // Memoize filtered and sorted registrations
+  const sortedRegistrations = useMemo(() => {
+    let filtered = slotFilter === 'all'
+      ? detailedRegistrations
+      : detailedRegistrations.filter((reg) => reg.slot_id === slotFilter);
 
-  // Apply search filter
-  if (searchQuery.trim()) {
-    const query = searchQuery.toLowerCase();
-    filteredRegistrations = filteredRegistrations.filter((reg) => {
-      return (
-        reg.name?.toLowerCase().includes(query) ||
-        reg.fathers_name?.toLowerCase().includes(query) ||
-        reg.email?.toLowerCase().includes(query) ||
-        reg.whatsapp_mobile?.includes(query) ||
-        reg.tajweed_level?.toLowerCase().includes(query) ||
-        reg.education?.toLowerCase().includes(query) ||
-        reg.profession?.toLowerCase().includes(query) ||
-        reg.previous_hifz?.toLowerCase().includes(query) ||
-        reg.expand?.slot_id?.display_name?.toLowerCase().includes(query) ||
-        getSlotDisplayName(reg.slot_id)?.toLowerCase().includes(query)
-      );
-    });
-  }
+    // Apply search filter with debounced search
+    if (debouncedSearch.trim()) {
+      const query = debouncedSearch.toLowerCase();
+      filtered = filtered.filter((reg) => {
+        return (
+          reg.name?.toLowerCase().includes(query) ||
+          reg.fathers_name?.toLowerCase().includes(query) ||
+          reg.email?.toLowerCase().includes(query) ||
+          reg.whatsapp_mobile?.includes(query) ||
+          reg.tajweed_level?.toLowerCase().includes(query) ||
+          reg.education?.toLowerCase().includes(query) ||
+          reg.profession?.toLowerCase().includes(query) ||
+          reg.previous_hifz?.toLowerCase().includes(query) ||
+          reg.expand?.slot_id?.display_name?.toLowerCase().includes(query) ||
+          getSlotDisplayName(reg.slot_id)?.toLowerCase().includes(query)
+        );
+      });
+    }
 
-  // Apply sorting
-  const sortedRegistrations = [...filteredRegistrations].sort((a, b) => {
+    // Apply sorting
+    return [...filtered].sort((a, b) => {
     let aValue, bValue;
 
     switch (sortConfig.key) {
@@ -204,7 +257,7 @@ const AdminDashboard = ({ onLogout, user }) => {
     if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
     return 0;
   });
-
+  }, [detailedRegistrations, slotFilter, debouncedSearch, sortConfig, getSlotDisplayName]);
   const handleSort = (key) => {
     setSortConfig((prev) => ({
       key,
@@ -471,7 +524,7 @@ const AdminDashboard = ({ onLogout, user }) => {
           <tbody>
             {sortedRegistrations.length === 0 ? (
               <tr>
-                <td colSpan="11" className="no-data">{searchQuery ? 'No matching registrations found' : 'No registrations found'}</td>
+                <td colSpan="11" className="no-data">{debouncedSearch ? 'No matching registrations found' : 'No registrations found'}</td>
               </tr>
             ) : (
               sortedRegistrations.map((reg) => (
