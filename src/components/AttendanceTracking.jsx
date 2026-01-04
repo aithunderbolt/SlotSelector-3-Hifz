@@ -136,8 +136,8 @@ const AttendanceTracking = ({ user }) => {
         setUploadError('Only image files (jpg, png, etc.) are allowed');
         return;
       }
-      if (file.size > 200 * 1024) {
-        setUploadError(`File ${file.name} exceeds 200KB limit`);
+      if (file.size > 400 * 1024) {
+        setUploadError(`File ${file.name} exceeds 400KB limit`);
         return;
       }
     }
@@ -542,7 +542,7 @@ const AttendanceTracking = ({ user }) => {
 
             <div className="form-group">
               <label htmlFor="attachments">
-                File Attachments * (1-3 images, max 200KB each)
+                File Attachments * (1-3 images, max 400KB each)
               </label>
               <input
                 type="file"
