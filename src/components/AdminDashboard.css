@@ -342,6 +342,29 @@
   border-bottom-color: #4CAF50;
 }
 
+/* Delete button in registrations table */
+.delete-btn {
+  padding: 6px 12px;
+  background: #dc3545;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.delete-btn:hover {
+  background: #c82333;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(220, 53, 69, 0.3);
+}
+
+.delete-btn:active {
+  transform: translateY(0);
+}
+
 @media (max-width: 768px) {
   .tabs {
     gap: 5px;

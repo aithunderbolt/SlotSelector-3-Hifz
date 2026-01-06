@@ -338,6 +338,20 @@ const AdminDashboard = ({ onLogout, user }) => {
     }
   };
 
+  const handleDeleteRegistration = async (registrationId, studentName) => {
+    if (!confirm(`Are you sure you want to delete the registration for ${studentName}?`)) {
+      return;
+    }
+
+    try {
+      await pb.collection('registrations').delete(registrationId);
+      fetchData(true);
+    } catch (err) {
+      setError(err.message);
+      console.error('Error deleting registration:', err);
+    }
+  };
+
   if (loading) {
     return <div className="loading">Loading registrations...</div>;
   }
@@ -519,12 +533,13 @@ const AdminDashboard = ({ onLogout, user }) => {
               <th onClick={() => handleSort('registered_at')} style={{ cursor: 'pointer' }}>
                 Registered At{getSortIcon('registered_at')}
               </th>
+              {isSlotAdmin && <th>Actions</th>}
             </tr>
           </thead>
           <tbody>
             {sortedRegistrations.length === 0 ? (
               <tr>
-                <td colSpan="11" className="no-data">{debouncedSearch ? 'No matching registrations found' : 'No registrations found'}</td>
+                <td colSpan={isSlotAdmin ? "12" : "11"} className="no-data">{debouncedSearch ? 'No matching registrations found' : 'No registrations found'}</td>
               </tr>
             ) : (
               sortedRegistrations.map((reg) => (
@@ -547,6 +562,17 @@ const AdminDashboard = ({ onLogout, user }) => {
                     minute: '2-digit',
                     hour12: true 
                   }) : '-'}</td>
+                  {isSlotAdmin && (
+                    <td>
+                      <button
+                        onClick={() => handleDeleteRegistration(reg.id, reg.name)}
+                        className="delete-btn"
+                        title="Delete registration"
+                      >
+                        Delete
+                      </button>
+                    </td>
+                  )}
                 </tr>
               ))
             )}
