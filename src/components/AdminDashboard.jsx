@@ -20,6 +20,7 @@ const AdminDashboard = ({ onLogout, user }) => {
   const [formTitle, setFormTitle] = useState('Hifz Registration Form');
   const [searchQuery, setSearchQuery] = useState('');
   const [sortConfig, setSortConfig] = useState({ key: 'registered_at', direction: 'desc' });
+  const [deletingId, setDeletingId] = useState(null);
 
   const isSlotAdmin = user.role === 'slot_admin';
   const isSuperAdmin = user.role === 'super_admin';
@@ -343,12 +344,41 @@ const AdminDashboard = ({ onLogout, user }) => {
       return;
     }
 
+    setDeletingId(registrationId);
+    setError(null);
+
     try {
+      // First verify the record exists and belongs to the slot admin's slot
+      const record = await pb.collection('registrations').getOne(registrationId);
+      
+      // For slot admins, verify they can only delete from their assigned slot
+      if (isSlotAdmin && record.slot_id !== userSlotId) {
+        setError('You can only delete registrations from your assigned slot.');
+        setDeletingId(null);
+        return;
+      }
+
       await pb.collection('registrations').delete(registrationId);
-      fetchData(true);
+      
+      // Clear cache and refetch
+      cacheRef.current = { timestamp: 0, data: null };
+      await fetchData(true);
+      
+      setError(null);
     } catch (err) {
-      setError(err.message);
+      if (err.status === 404) {
+        setError('This registration has already been deleted or does not exist.');
+        // Refresh data to sync with server
+        cacheRef.current = { timestamp: 0, data: null };
+        fetchData(true);
+      } else if (err.status === 403) {
+        setError('You do not have permission to delete this registration.');
+      } else {
+        setError(`Error deleting registration: ${err.message}`);
+      }
       console.error('Error deleting registration:', err);
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -568,8 +598,9 @@ const AdminDashboard = ({ onLogout, user }) => {
                         onClick={() => handleDeleteRegistration(reg.id, reg.name)}
                         className="delete-btn"
                         title="Delete registration"
+                        disabled={deletingId === reg.id}
                       >
-                        Delete
+                        {deletingId === reg.id ? 'Deleting...' : 'Delete'}
                       </button>
                     </td>
                   )}
