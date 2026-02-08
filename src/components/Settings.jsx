@@ -5,6 +5,7 @@ import './Settings.css';
 const Settings = () => {
   const [formTitle, setFormTitle] = useState('');
   const [maxRegistrations, setMaxRegistrations] = useState('15');
+  const [maxAttachmentSizeKB, setMaxAttachmentSizeKB] = useState('400');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState(null);
@@ -17,14 +18,16 @@ const Settings = () => {
     try {
       setLoading(true);
       const settings = await pb.collection('settings').getFullList({
-        filter: 'key = "form_title" || key = "max_registrations_per_slot"',
+        filter: 'key = "form_title" || key = "max_registrations_per_slot" || key = "max_attachment_size_kb"',
       });
 
       const titleSetting = settings.find(s => s.key === 'form_title');
       const maxRegSetting = settings.find(s => s.key === 'max_registrations_per_slot');
+      const maxAttachmentSetting = settings.find(s => s.key === 'max_attachment_size_kb');
       
       setFormTitle(titleSetting?.value || 'Hifz Registration Form');
       setMaxRegistrations(maxRegSetting?.value || '15');
+      setMaxAttachmentSizeKB(maxAttachmentSetting?.value || '400');
     } catch (err) {
       console.error('Error fetching settings:', err);
       setMessage({ type: 'error', text: 'Failed to load settings' });
@@ -49,6 +52,17 @@ const Settings = () => {
 
     if (maxRegNum > 100) {
       setMessage({ type: 'error', text: 'Maximum registrations cannot exceed 100' });
+      return;
+    }
+
+    const maxAttachmentSize = parseInt(maxAttachmentSizeKB);
+    if (isNaN(maxAttachmentSize) || maxAttachmentSize < 1) {
+      setMessage({ type: 'error', text: 'Maximum attachment size must be a positive number' });
+      return;
+    }
+
+    if (maxAttachmentSize > 10240) {
+      setMessage({ type: 'error', text: 'Maximum attachment size cannot exceed 10240 KB (10 MB)' });
       return;
     }
 
@@ -85,6 +99,22 @@ const Settings = () => {
         await pb.collection('settings').create({
           key: 'max_registrations_per_slot',
           value: maxRegNum.toString(),
+        });
+      }
+
+      // Check if max_attachment_size_kb exists
+      const maxAttachmentSettings = await pb.collection('settings').getFullList({
+        filter: 'key = "max_attachment_size_kb"',
+      });
+
+      if (maxAttachmentSettings.length > 0) {
+        await pb.collection('settings').update(maxAttachmentSettings[0].id, {
+          value: maxAttachmentSize.toString(),
+        });
+      } else {
+        await pb.collection('settings').create({
+          key: 'max_attachment_size_kb',
+          value: maxAttachmentSize.toString(),
         });
       }
 
@@ -133,6 +163,21 @@ const Settings = () => {
             max="100"
           />
           <small>Maximum number of students that can register for each time slot (1-100)</small>
+        </div>
+
+        <div className="form-group">
+          <label htmlFor="maxAttachmentSize">Maximum Attachment Size (KB)</label>
+          <input
+            type="number"
+            id="maxAttachmentSize"
+            value={maxAttachmentSizeKB}
+            onChange={(e) => setMaxAttachmentSizeKB(e.target.value)}
+            disabled={saving}
+            placeholder="Enter maximum attachment size in KB"
+            min="1"
+            max="10240"
+          />
+          <small>Maximum file size for attendance attachments in KB (e.g., 500 for 500 KB, max 10240 KB)</small>
         </div>
 
         <button type="submit" disabled={saving} className="save-btn">

@@ -24,6 +24,7 @@ const AttendanceTracking = ({ user }) => {
   const [uploadError, setUploadError] = useState(null);
   const [attachmentPreviews, setAttachmentPreviews] = useState([]);
   const [viewingImage, setViewingImage] = useState(null);
+  const [maxAttachmentSizeKB, setMaxAttachmentSizeKB] = useState(400);
   
   // Cache and debounce refs
   const cacheRef = useRef({ timestamp: 0, data: null });
@@ -42,6 +43,19 @@ const AttendanceTracking = ({ user }) => {
         setAttendanceRecords(cacheRef.current.data.attendance);
         setLoading(false);
         return;
+      }
+
+      // Fetch max attachment size setting
+      try {
+        const settingsData = await pb.collection('settings').getFirstListItem('key = "max_attachment_size_kb"');
+        if (settingsData?.value) {
+          setMaxAttachmentSizeKB(parseInt(settingsData.value));
+        }
+      } catch (err) {
+        // Setting not found, use default
+        if (err.status !== 404) {
+          console.error('Error fetching max attachment size:', err);
+        }
       }
 
       // Fetch data in parallel with pagination
@@ -136,8 +150,8 @@ const AttendanceTracking = ({ user }) => {
         setUploadError('Only image files (jpg, png, etc.) are allowed');
         return;
       }
-      if (file.size > 400 * 1024) {
-        setUploadError(`File ${file.name} exceeds 400KB limit`);
+      if (file.size > maxAttachmentSizeKB * 1024) {
+        setUploadError(`File ${file.name} exceeds ${maxAttachmentSizeKB}KB limit`);
         return;
       }
     }
@@ -542,7 +556,7 @@ const AttendanceTracking = ({ user }) => {
 
             <div className="form-group">
               <label htmlFor="attachments">
-                File Attachments * (1-3 images, max 400KB each)
+                File Attachments * (1-3 images, max {maxAttachmentSizeKB}KB each)
               </label>
               <input
                 type="file"
