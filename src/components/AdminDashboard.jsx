@@ -8,6 +8,7 @@ import UserTransfer from './UserTransfer';
 import ClassManagement from './ClassManagement';
 import AttendanceTracking from './AttendanceTracking';
 import AttendanceAnalytics from './AttendanceAnalytics';
+import Reports from './Reports';
 import './AdminDashboard.css';
 
 const AdminDashboard = ({ onLogout, user }) => {
@@ -451,6 +452,12 @@ const AdminDashboard = ({ onLogout, user }) => {
               Attendance Analytics
             </button>
             <button
+              className={`tab ${activeTab === 'reports' ? 'active' : ''}`}
+              onClick={() => setActiveTab('reports')}
+            >
+              Reports
+            </button>
+            <button
               className={`tab ${activeTab === 'settings' ? 'active' : ''}`}
               onClick={() => setActiveTab('settings')}
             >
@@ -631,6 +638,10 @@ const AdminDashboard = ({ onLogout, user }) => {
 
       {activeTab === 'analytics' && isSuperAdmin && (
         <AttendanceAnalytics />
+      )}
+
+      {activeTab === 'reports' && isSuperAdmin && (
+        <Reports />
       )}
 
       {activeTab === 'attendance' && isSlotAdmin && (
