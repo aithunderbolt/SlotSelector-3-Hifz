@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { pb } from '../lib/supabaseClient';
 import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 import './Reports.css';
 
 const Reports = () => {
@@ -105,10 +106,9 @@ const Reports = () => {
     return classData;
   };
 
-  const generatePDF = () => {
+  const generatePDF = async () => {
     setGenerating(true);
     try {
-      const doc = new jsPDF();
       const classData = getClassData();
 
       if (classData.length === 0) {
@@ -117,88 +117,118 @@ const Reports = () => {
         return;
       }
 
-      let yPosition = 20;
-      const pageHeight = doc.internal.pageSize.height;
-      const margin = 20;
-      const lineHeight = 7;
+      // Create PDF
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+      const margin = 15;
+      const contentWidth = pdfWidth - (2 * margin);
+      const contentHeight = pdfHeight - (2 * margin);
 
-      // Title
-      doc.setFontSize(18);
-      doc.setFont('helvetica', 'bold');
-      doc.text('Class Report', 105, yPosition, { align: 'center' });
-      yPosition += 15;
+      let yPosition = margin;
 
-      doc.setFontSize(10);
-      doc.setFont('helvetica', 'normal');
-      doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 105, yPosition, { align: 'center' });
-      yPosition += 15;
+      // Helper function to create HTML element for a class section
+      const createClassElement = (classItem, isFirst = false) => {
+        const container = document.createElement('div');
+        container.style.width = '700px';
+        container.style.padding = '20px';
+        container.style.backgroundColor = 'white';
+        container.style.fontFamily = 'Arial, Tahoma, sans-serif';
+        container.style.direction = 'ltr';
 
-      // Iterate through each class
-      classData.forEach((classItem, index) => {
-        // Check if we need a new page
-        if (yPosition + 60 > pageHeight - margin) {
-          doc.addPage();
-          yPosition = 20;
+        let html = '';
+
+        // Add title only for first class
+        if (isFirst) {
+          html += `
+            <div style="text-align: center; margin-bottom: 20px;">
+              <h1 style="font-size: 22px; margin-bottom: 8px;">Class Report</h1>
+              <p style="font-size: 11px; color: #666;">Generated on: ${new Date().toLocaleDateString()}</p>
+            </div>
+          `;
         }
 
-        // Class Name (Header)
-        doc.setFontSize(14);
-        doc.setFont('helvetica', 'bold');
-        doc.text(classItem.name, margin, yPosition);
-        yPosition += lineHeight + 2;
+        html += `
+          <div style="margin-bottom: 15px;">
+            <h2 style="font-size: 16px; border-bottom: 2px solid #3498db; padding-bottom: 6px; margin-bottom: 12px;">${classItem.name}</h2>
+            <div style="font-size: 12px; line-height: 1.8;">
+              <div style="margin-bottom: 8px;">
+                <strong>Supervisor:</strong> Farheen
+              </div>
+              <div style="margin-bottom: 8px;">
+                <strong>Name of Teachers:</strong> ${classItem.teacherNames}
+              </div>
+              <div style="margin-bottom: 8px; direction: auto;">
+                <strong>Class Summary:</strong> <span style="unicode-bidi: embed;">${classItem.description || 'N/A'}</span>
+              </div>
+              <div style="margin-bottom: 8px;">
+                <strong>Total Students:</strong> ${classItem.totalStudents}
+              </div>
+            </div>
+          </div>
+        `;
 
-        // Separator line
-        doc.setLineWidth(0.5);
-        doc.line(margin, yPosition, 190, yPosition);
-        yPosition += lineHeight;
+        container.innerHTML = html;
+        return container;
+      };
 
-        // Class details
-        doc.setFontSize(11);
-        doc.setFont('helvetica', 'normal');
+      // Process each class section
+      for (let i = 0; i < classData.length; i++) {
+        const classItem = classData[i];
+        const isFirst = i === 0;
 
-        // Supervisor
-        doc.setFont('helvetica', 'bold');
-        doc.text('Supervisor:', margin, yPosition);
-        doc.setFont('helvetica', 'normal');
-        doc.text('Farheen', margin + 35, yPosition);
-        yPosition += lineHeight;
+        // Create the element for this class
+        const element = createClassElement(classItem, isFirst);
+        element.style.position = 'absolute';
+        element.style.left = '-9999px';
+        document.body.appendChild(element);
 
-        // Name of Teachers
-        doc.setFont('helvetica', 'bold');
-        doc.text('Name of Teachers:', margin, yPosition);
-        doc.setFont('helvetica', 'normal');
-        const teacherText = classItem.teacherNames || 'N/A';
-        const teacherLines = doc.splitTextToSize(teacherText, 140);
-        doc.text(teacherLines, margin + 35, yPosition);
-        yPosition += lineHeight * teacherLines.length;
+        // Wait for fonts to load
+        await document.fonts.ready;
 
-        // Class Summary
-        doc.setFont('helvetica', 'bold');
-        doc.text('Class Summary:', margin, yPosition);
-        doc.setFont('helvetica', 'normal');
-        const descriptionText = classItem.description || 'N/A';
-        const descriptionLines = doc.splitTextToSize(descriptionText, 140);
-        doc.text(descriptionLines, margin + 35, yPosition);
-        yPosition += lineHeight * descriptionLines.length;
+        // Convert to canvas
+        const canvas = await html2canvas(element, {
+          scale: 2,
+          useCORS: true,
+          logging: false,
+          backgroundColor: '#ffffff'
+        });
 
-        // Total Students
-        doc.setFont('helvetica', 'bold');
-        doc.text('Total Students:', margin, yPosition);
-        doc.setFont('helvetica', 'normal');
-        doc.text(classItem.totalStudents.toString(), margin + 35, yPosition);
-        yPosition += lineHeight + 5;
+        // Remove element
+        document.body.removeChild(element);
 
-        // Add separator between classes (except for the last one)
-        if (index < classData.length - 1) {
-          doc.setLineWidth(0.3);
-          doc.setDrawColor(200, 200, 200);
-          doc.line(margin, yPosition, 190, yPosition);
-          yPosition += 10;
+        // Calculate image dimensions
+        const imgWidth = contentWidth;
+        const ratio = imgWidth / canvas.width;
+        const imgHeight = canvas.height * ratio;
+
+        // Check if we need a new page (leave some margin for separator)
+        if (i > 0 && yPosition + imgHeight > pdfHeight - margin) {
+          pdf.addPage();
+          yPosition = margin;
         }
-      });
+
+        // Add image to PDF
+        const imgData = canvas.toDataURL('image/jpeg', 0.95);
+        pdf.addImage(imgData, 'JPEG', margin, yPosition, imgWidth, imgHeight);
+
+        yPosition += imgHeight;
+
+        // Add separator line (except for last item)
+        if (i < classData.length - 1) {
+          // Check if separator and next section might need a new page
+          yPosition += 3;
+          if (yPosition + 5 < pdfHeight - margin) {
+            pdf.setLineWidth(0.3);
+            pdf.setDrawColor(200, 200, 200);
+            pdf.line(margin, yPosition, pdfWidth - margin, yPosition);
+            yPosition += 5;
+          }
+        }
+      }
 
       // Save the PDF
-      doc.save(`Class_Report_${new Date().toISOString().split('T')[0]}.pdf`);
+      pdf.save(`Class_Report_${new Date().toISOString().split('T')[0]}.pdf`);
     } catch (err) {
       console.error('Error generating PDF:', err);
       alert('Error generating PDF. Please try again.');
