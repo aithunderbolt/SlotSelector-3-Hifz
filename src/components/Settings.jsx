@@ -6,6 +6,7 @@ const Settings = () => {
   const [formTitle, setFormTitle] = useState('');
   const [maxRegistrations, setMaxRegistrations] = useState('15');
   const [maxAttachmentSizeKB, setMaxAttachmentSizeKB] = useState('400');
+  const [supervisorName, setSupervisorName] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState(null);
@@ -18,16 +19,18 @@ const Settings = () => {
     try {
       setLoading(true);
       const settings = await pb.collection('settings').getFullList({
-        filter: 'key = "form_title" || key = "max_registrations_per_slot" || key = "max_attachment_size_kb"',
+        filter: 'key = "form_title" || key = "max_registrations_per_slot" || key = "max_attachment_size_kb" || key = "supervisor_name"',
       });
 
       const titleSetting = settings.find(s => s.key === 'form_title');
       const maxRegSetting = settings.find(s => s.key === 'max_registrations_per_slot');
       const maxAttachmentSetting = settings.find(s => s.key === 'max_attachment_size_kb');
-      
+      const supervisorSetting = settings.find(s => s.key === 'supervisor_name');
+
       setFormTitle(titleSetting?.value || 'Hifz Registration Form');
       setMaxRegistrations(maxRegSetting?.value || '15');
       setMaxAttachmentSizeKB(maxAttachmentSetting?.value || '400');
+      setSupervisorName(supervisorSetting?.value || '');
     } catch (err) {
       console.error('Error fetching settings:', err);
       setMessage({ type: 'error', text: 'Failed to load settings' });
@@ -38,7 +41,7 @@ const Settings = () => {
 
   const handleSave = async (e) => {
     e.preventDefault();
-    
+
     if (!formTitle.trim()) {
       setMessage({ type: 'error', text: 'Form title cannot be empty' });
       return;
@@ -118,6 +121,22 @@ const Settings = () => {
         });
       }
 
+      // Check if supervisor_name exists
+      const supervisorSettings = await pb.collection('settings').getFullList({
+        filter: 'key = "supervisor_name"',
+      });
+
+      if (supervisorSettings.length > 0) {
+        await pb.collection('settings').update(supervisorSettings[0].id, {
+          value: supervisorName.trim(),
+        });
+      } else {
+        await pb.collection('settings').create({
+          key: 'supervisor_name',
+          value: supervisorName.trim(),
+        });
+      }
+
       setMessage({ type: 'success', text: 'Settings saved successfully!' });
     } catch (err) {
       console.error('Error saving settings:', err);
@@ -134,7 +153,7 @@ const Settings = () => {
   return (
     <div className="settings-container">
       <h2>Application Settings</h2>
-      
+
       <form onSubmit={handleSave} className="settings-form">
         <div className="form-group">
           <label htmlFor="formTitle">Registration Form Title</label>
@@ -178,6 +197,20 @@ const Settings = () => {
             max="10240"
           />
           <small>Maximum file size for attendance attachments in KB (e.g., 500 for 500 KB, max 10240 KB)</small>
+        </div>
+
+        <div className="form-group">
+          <label htmlFor="supervisorName">Supervisor Name</label>
+          <input
+            type="text"
+            id="supervisorName"
+            value={supervisorName}
+            onChange={(e) => setSupervisorName(e.target.value)}
+            disabled={saving}
+            placeholder="Enter supervisor name"
+            maxLength={100}
+          />
+          <small>This name will be displayed as the supervisor in the class reports</small>
         </div>
 
         <button type="submit" disabled={saving} className="save-btn">

@@ -12,6 +12,7 @@ const Reports = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [generating, setGenerating] = useState(false);
+  const [supervisorName, setSupervisorName] = useState('Farheen');
 
   const fetchData = async () => {
     try {
@@ -34,6 +35,20 @@ const Reports = () => {
       const slotsData = await pb.collection('slots').getFullList({
         sort: 'slot_order',
       });
+
+      // Fetch supervisor name from settings
+      try {
+        const settingsData = await pb.collection('settings').getFullList({
+          filter: 'key = "supervisor_name"',
+        });
+
+        if (settingsData && settingsData.length > 0) {
+          setSupervisorName(settingsData[0].value);
+        }
+      } catch (err) {
+        console.error('Error fetching supervisor name setting:', err);
+        // Fallback to default if error
+      }
 
       setClasses(classesData || []);
       setAttendanceRecords(attendanceData || []);
@@ -157,7 +172,7 @@ const Reports = () => {
             <h2 style="font-size: 16px; border-bottom: 2px solid #3498db; padding-bottom: 6px; margin-bottom: 12px;">${classItem.name}</h2>
             <div style="font-size: 12px; line-height: 1.8;">
               <div style="margin-bottom: 8px;">
-                <strong>Supervisor:</strong> Farheen
+                <strong>Supervisor:</strong> ${supervisorName}
               </div>
               <div style="margin-bottom: 8px;">
                 <strong>Name of Teachers:</strong> ${classItem.teacherNames}
@@ -306,7 +321,7 @@ const Reports = () => {
               <div className="preview-details">
                 <div className="preview-row">
                   <span className="preview-label">Supervisor:</span>
-                  <span className="preview-value">Farheen</span>
+                  <span className="preview-value">{supervisorName}</span>
                 </div>
                 <div className="preview-row">
                   <span className="preview-label">Name of Teachers:</span>
