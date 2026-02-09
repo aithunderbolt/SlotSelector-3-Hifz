@@ -140,6 +140,38 @@
   margin-bottom: 20px;
 }
 
+.preview-attachments {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #e0e0e0;
+}
+
+.preview-attachments .preview-label {
+  display: block;
+  margin-bottom: 10px;
+}
+
+.preview-images {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.preview-image {
+  max-width: 150px;
+  max-height: 120px;
+  object-fit: cover;
+  border-radius: 6px;
+  border: 1px solid #dee2e6;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.preview-image:hover {
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
 @media (max-width: 768px) {
   .reports-header {
     flex-direction: column;
@@ -158,5 +190,10 @@
 
   .preview-label {
     min-width: auto;
+  }
+
+  .preview-image {
+    max-width: 100px;
+    max-height: 80px;
   }
 }

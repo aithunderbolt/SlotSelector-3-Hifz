@@ -56,25 +56,23 @@ const Reports = () => {
     const classData = [];
 
     classes.forEach((classItem) => {
-      // Count attendance entries for this class
-      const attendanceCount = attendanceRecords.filter(
+      // Get attendance records for this class
+      const classAttendance = attendanceRecords.filter(
         (record) => record.class_id === classItem.id
-      ).length;
+      );
+      const attendanceCount = classAttendance.length;
 
       // Only include classes with attendance >= total slots
       if (attendanceCount >= slots.length) {
         // Calculate total students from attendance records
-        const totalStudents = attendanceRecords
-          .filter((record) => record.class_id === classItem.id)
-          .reduce((sum, record) => sum + record.total_students, 0);
+        const totalStudents = classAttendance.reduce(
+          (sum, record) => sum + record.total_students,
+          0
+        );
 
         // Get unique slot IDs that have attendance for this class
         const slotIdsWithAttendance = [
-          ...new Set(
-            attendanceRecords
-              .filter((record) => record.class_id === classItem.id)
-              .map((record) => record.slot_id)
-          ),
+          ...new Set(classAttendance.map((record) => record.slot_id)),
         ];
 
         // Get teacher names for these slots
@@ -84,12 +82,18 @@ const Reports = () => {
           .filter((name) => name)
           .join(', ');
 
+        // Collect all attachments from attendance records
+        const attachments = classAttendance
+          .filter((record) => record.attachments && record.attachments.length > 0)
+          .flatMap((record) => record.attachments);
+
         classData.push({
           name: classItem.name,
           description: classItem.description || '',
           totalStudents: totalStudents,
           teacherNames: teacherNames || 'N/A',
           attendanceCount: attendanceCount,
+          attachments: attachments,
         });
       }
     });
@@ -167,6 +171,28 @@ const Reports = () => {
             </div>
           </div>
         `;
+
+        // Add attendance images if available
+        if (classItem.attachments && classItem.attachments.length > 0) {
+          html += `
+            <div style="margin-top: 12px; margin-bottom: 15px;">
+              <div style="font-size: 12px; font-weight: bold; margin-bottom: 8px;">Attendance Images:</div>
+              <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+          `;
+
+          classItem.attachments.forEach((attachment) => {
+            html += `
+              <div style="border: 1px solid #dee2e6; border-radius: 4px; overflow: hidden;">
+                <img src="${attachment.data}" alt="${attachment.name}" style="max-width: 200px; max-height: 150px; object-fit: contain; display: block;" />
+              </div>
+            `;
+          });
+
+          html += `
+              </div>
+            </div>
+          `;
+        }
 
         container.innerHTML = html;
         return container;
@@ -294,6 +320,22 @@ const Reports = () => {
                   <span className="preview-label">Total Students:</span>
                   <span className="preview-value">{classItem.totalStudents}</span>
                 </div>
+                {classItem.attachments && classItem.attachments.length > 0 && (
+                  <div className="preview-attachments">
+                    <span className="preview-label">Attendance Images:</span>
+                    <div className="preview-images">
+                      {classItem.attachments.map((attachment, idx) => (
+                        <img
+                          key={idx}
+                          src={attachment.data}
+                          alt={attachment.name}
+                          className="preview-image"
+                          title={attachment.name}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           ))}
