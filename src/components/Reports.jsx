@@ -2,9 +2,11 @@ import { useState, useEffect, useMemo } from 'react';
 import { pb } from '../lib/supabaseClient';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
+import { Document, Packer, Paragraph, TextRun, HeadingLevel, ImageRun, BorderStyle } from 'docx';
+import { saveAs } from 'file-saver';
 import './Reports.css';
 
-const Reports = () => {
+const Reports = ({ isSuperAdmin = false }) => {
   const [classes, setClasses] = useState([]);
   const [attendanceRecords, setAttendanceRecords] = useState([]);
   const [users, setUsers] = useState([]);
@@ -12,6 +14,7 @@ const Reports = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [generating, setGenerating] = useState(false);
+  const [generatingWord, setGeneratingWord] = useState(false);
   const [supervisorName, setSupervisorName] = useState('Farheen');
 
   const fetchData = async () => {
@@ -337,6 +340,155 @@ const Reports = () => {
     }
   };
 
+  const generateWord = async () => {
+    setGeneratingWord(true);
+    try {
+      if (classData.length === 0) {
+        alert('No classes with complete attendance found to generate report.');
+        setGeneratingWord(false);
+        return;
+      }
+
+      const attachmentsPromises = classData.map(classItem =>
+        fetchAttachmentsForClass(classItem.attendanceIds)
+      );
+      const allAttachments = await Promise.all(attachmentsPromises);
+
+      const classDataWithAttachments = classData.map((classItem, index) => ({
+        ...classItem,
+        attachments: allAttachments[index] || [],
+      }));
+
+      const base64ToUint8Array = (dataUri) => {
+        const base64 = dataUri.split(',')[1];
+        const binaryString = atob(base64);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
+        }
+        return bytes;
+      };
+
+      const children = [];
+
+      children.push(
+        new Paragraph({
+          text: 'Class Report',
+          heading: HeadingLevel.HEADING_1,
+          alignment: 'center',
+          spacing: { after: 100 },
+        }),
+        new Paragraph({
+          alignment: 'center',
+          spacing: { after: 300 },
+          children: [
+            new TextRun({
+              text: `Generated on: ${new Date().toLocaleDateString()}`,
+              size: 20,
+              color: '666666',
+            }),
+          ],
+        })
+      );
+
+      for (const classItem of classDataWithAttachments) {
+        children.push(
+          new Paragraph({
+            text: classItem.name,
+            heading: HeadingLevel.HEADING_2,
+            spacing: { before: 300, after: 150 },
+            border: {
+              bottom: { style: BorderStyle.SINGLE, size: 6, color: '3498db' },
+            },
+          })
+        );
+
+        children.push(
+          new Paragraph({
+            spacing: { after: 80 },
+            children: [
+              new TextRun({ text: 'Supervisor: ', bold: true, size: 22 }),
+              new TextRun({ text: supervisorName, size: 22 }),
+            ],
+          })
+        );
+
+        children.push(
+          new Paragraph({
+            spacing: { after: 80 },
+            children: [
+              new TextRun({ text: 'Name of Teachers: ', bold: true, size: 22 }),
+              new TextRun({ text: classItem.teacherNames, size: 22 }),
+            ],
+          })
+        );
+
+        children.push(
+          new Paragraph({
+            spacing: { after: 80 },
+            children: [
+              new TextRun({ text: 'Class Summary: ', bold: true, size: 22 }),
+              new TextRun({ text: classItem.description || 'N/A', size: 22 }),
+            ],
+          })
+        );
+
+        children.push(
+          new Paragraph({
+            spacing: { after: 150 },
+            children: [
+              new TextRun({ text: 'Total Students: ', bold: true, size: 22 }),
+              new TextRun({ text: String(classItem.totalStudents), size: 22 }),
+            ],
+          })
+        );
+
+        if (classItem.attachments && classItem.attachments.length > 0) {
+          children.push(
+            new Paragraph({
+              spacing: { before: 100, after: 80 },
+              children: [
+                new TextRun({ text: 'Attendance Images:', bold: true, size: 22 }),
+              ],
+            })
+          );
+
+          for (const attachment of classItem.attachments) {
+            try {
+              const imageData = base64ToUint8Array(attachment.data);
+              children.push(
+                new Paragraph({
+                  spacing: { after: 100 },
+                  children: [
+                    new ImageRun({
+                      data: imageData,
+                      transformation: { width: 300, height: 225 },
+                      type: 'png',
+                    }),
+                  ],
+                })
+              );
+            } catch (imgErr) {
+              console.warn('Skipping image:', imgErr);
+            }
+          }
+        }
+      }
+
+      const doc = new Document({
+        sections: [{ children }],
+      });
+
+      const blob = await Packer.toBlob(doc);
+      saveAs(blob, `Class_Report_${new Date().toISOString().split('T')[0]}.docx`);
+    } catch (err) {
+      console.error('Error generating Word document:', err);
+      alert('Error generating Word document. Please try again.');
+    } finally {
+      setGeneratingWord(false);
+    }
+  };
+
   if (loading) {
     return <div className="loading">Loading report data...</div>;
   }
@@ -345,13 +497,24 @@ const Reports = () => {
     <div className="reports-container">
       <div className="reports-header">
         <h2>Reports</h2>
-        <button
-          onClick={generatePDF}
-          disabled={generating || classData.length === 0}
-          className="generate-pdf-btn"
-        >
-          {generating ? 'Generating PDF...' : 'Download PDF Report'}
-        </button>
+        <div className="reports-actions">
+          <button
+            onClick={generatePDF}
+            disabled={generating || classData.length === 0}
+            className="generate-pdf-btn"
+          >
+            {generating ? 'Generating PDF...' : 'Download PDF Report'}
+          </button>
+          {isSuperAdmin && (
+            <button
+              onClick={generateWord}
+              disabled={generatingWord || classData.length === 0}
+              className="generate-word-btn"
+            >
+              {generatingWord ? 'Generating Word...' : 'Download Word Report'}
+            </button>
+          )}
+        </div>
       </div>
 
       {error && <div className="error-message">{error}</div>}

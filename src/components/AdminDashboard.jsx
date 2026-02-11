@@ -26,7 +26,7 @@ const AdminDashboard = ({ onLogout, user }) => {
   const isSlotAdmin = user.role === 'slot_admin';
   const isSuperAdmin = user.role === 'super_admin';
   const userSlotId = user.assigned_slot_id;
-  
+
   // Cache and debounce refs
   const cacheRef = useRef({ timestamp: 0, data: null });
   const refetchTimeoutRef = useRef(null);
@@ -41,7 +41,7 @@ const AdminDashboard = ({ onLogout, user }) => {
     searchTimeoutRef.current = setTimeout(() => {
       setDebouncedSearch(searchQuery);
     }, 300);
-    
+
     return () => {
       if (searchTimeoutRef.current) {
         clearTimeout(searchTimeoutRef.current);
@@ -52,7 +52,7 @@ const AdminDashboard = ({ onLogout, user }) => {
   const fetchData = useCallback(async (forceRefresh = false) => {
     try {
       setLoading(true);
-      
+
       const now = Date.now();
       const cacheAge = now - cacheRef.current.timestamp;
       const useCache = !forceRefresh && cacheAge < 5000 && cacheRef.current.data;
@@ -78,7 +78,7 @@ const AdminDashboard = ({ onLogout, user }) => {
 
       // Fetch registrations in parallel
       let detailedRegistrations, allRegistrations;
-      
+
       if (isSlotAdmin) {
         [detailedRegistrations, allRegistrations] = await Promise.all([
           pb.collection('registrations').getList(1, 200, {
@@ -97,7 +97,7 @@ const AdminDashboard = ({ onLogout, user }) => {
         }).then(res => res.items);
       }
 
-      const registrationsData = isSlotAdmin 
+      const registrationsData = isSlotAdmin
         ? { detailed: detailedRegistrations, all: allRegistrations }
         : detailedRegistrations;
 
@@ -163,10 +163,10 @@ const AdminDashboard = ({ onLogout, user }) => {
     slots.forEach((slot) => {
       counts[slot.id] = 0;
     });
-    
+
     // Use all registrations for counts if slot admin, otherwise use regular registrations
     const dataForCounts = isSlotAdmin ? (registrations.all || []) : (Array.isArray(registrations) ? registrations : []);
-    
+
     dataForCounts.forEach((reg) => {
       if (counts[reg.slot_id] !== undefined) {
         counts[reg.slot_id]++;
@@ -184,11 +184,11 @@ const AdminDashboard = ({ onLogout, user }) => {
   }, [slots]);
 
   // Use detailed registrations for slot admin, regular for super admin
-  const detailedRegistrations = useMemo(() => 
+  const detailedRegistrations = useMemo(() =>
     isSlotAdmin ? (registrations.detailed || []) : (Array.isArray(registrations) ? registrations : []),
     [isSlotAdmin, registrations]
   );
-  
+
   // Memoize filtered and sorted registrations
   const sortedRegistrations = useMemo(() => {
     let filtered = slotFilter === 'all'
@@ -216,49 +216,49 @@ const AdminDashboard = ({ onLogout, user }) => {
 
     // Apply sorting
     return [...filtered].sort((a, b) => {
-    let aValue, bValue;
+      let aValue, bValue;
 
-    switch (sortConfig.key) {
-      case 'name':
-        aValue = a.name?.toLowerCase() || '';
-        bValue = b.name?.toLowerCase() || '';
-        break;
-      case 'fathers_name':
-        aValue = a.fathers_name?.toLowerCase() || '';
-        bValue = b.fathers_name?.toLowerCase() || '';
-        break;
-      case 'date_of_birth':
-        aValue = a.date_of_birth ? new Date(a.date_of_birth) : new Date(0);
-        bValue = b.date_of_birth ? new Date(b.date_of_birth) : new Date(0);
-        break;
-      case 'email':
-        aValue = a.email?.toLowerCase() || '';
-        bValue = b.email?.toLowerCase() || '';
-        break;
-      case 'whatsapp_mobile':
-        aValue = a.whatsapp_mobile || '';
-        bValue = b.whatsapp_mobile || '';
-        break;
-      case 'tajweed_level':
-        aValue = a.tajweed_level?.toLowerCase() || '';
-        bValue = b.tajweed_level?.toLowerCase() || '';
-        break;
-      case 'slot':
-        aValue = (a.expand?.slot_id?.display_name || getSlotDisplayName(a.slot_id))?.toLowerCase() || '';
-        bValue = (b.expand?.slot_id?.display_name || getSlotDisplayName(b.slot_id))?.toLowerCase() || '';
-        break;
-      case 'registered_at':
-        aValue = a.registered_at ? new Date(a.registered_at) : new Date(0);
-        bValue = b.registered_at ? new Date(b.registered_at) : new Date(0);
-        break;
-      default:
-        return 0;
-    }
+      switch (sortConfig.key) {
+        case 'name':
+          aValue = a.name?.toLowerCase() || '';
+          bValue = b.name?.toLowerCase() || '';
+          break;
+        case 'fathers_name':
+          aValue = a.fathers_name?.toLowerCase() || '';
+          bValue = b.fathers_name?.toLowerCase() || '';
+          break;
+        case 'date_of_birth':
+          aValue = a.date_of_birth ? new Date(a.date_of_birth) : new Date(0);
+          bValue = b.date_of_birth ? new Date(b.date_of_birth) : new Date(0);
+          break;
+        case 'email':
+          aValue = a.email?.toLowerCase() || '';
+          bValue = b.email?.toLowerCase() || '';
+          break;
+        case 'whatsapp_mobile':
+          aValue = a.whatsapp_mobile || '';
+          bValue = b.whatsapp_mobile || '';
+          break;
+        case 'tajweed_level':
+          aValue = a.tajweed_level?.toLowerCase() || '';
+          bValue = b.tajweed_level?.toLowerCase() || '';
+          break;
+        case 'slot':
+          aValue = (a.expand?.slot_id?.display_name || getSlotDisplayName(a.slot_id))?.toLowerCase() || '';
+          bValue = (b.expand?.slot_id?.display_name || getSlotDisplayName(b.slot_id))?.toLowerCase() || '';
+          break;
+        case 'registered_at':
+          aValue = a.registered_at ? new Date(a.registered_at) : new Date(0);
+          bValue = b.registered_at ? new Date(b.registered_at) : new Date(0);
+          break;
+        default:
+          return 0;
+      }
 
-    if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
-    if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
-    return 0;
-  });
+      if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
+      if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
+      return 0;
+    });
   }, [detailedRegistrations, slotFilter, debouncedSearch, sortConfig, getSlotDisplayName]);
   const handleSort = (key) => {
     setSortConfig((prev) => ({
@@ -290,13 +290,13 @@ const AdminDashboard = ({ onLogout, user }) => {
       'Profession': reg.profession || '',
       'Previous Hifz': reg.previous_hifz || '',
       'Time Slot': reg.expand?.slot_id?.display_name || getSlotDisplayName(reg.slot_id),
-      'Registered At': reg.registered_at ? new Date(reg.registered_at).toLocaleString('en-GB', { 
-        day: '2-digit', 
-        month: '2-digit', 
-        year: 'numeric', 
-        hour: '2-digit', 
+      'Registered At': reg.registered_at ? new Date(reg.registered_at).toLocaleString('en-GB', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
         minute: '2-digit',
-        hour12: true 
+        hour12: true
       }) : '',
     }));
 
@@ -351,7 +351,7 @@ const AdminDashboard = ({ onLogout, user }) => {
     try {
       // First verify the record exists and belongs to the slot admin's slot
       const record = await pb.collection('registrations').getOne(registrationId);
-      
+
       // For slot admins, verify they can only delete from their assigned slot
       if (isSlotAdmin && record.slot_id !== userSlotId) {
         setError('You can only delete registrations from your assigned slot.');
@@ -360,11 +360,11 @@ const AdminDashboard = ({ onLogout, user }) => {
       }
 
       await pb.collection('registrations').delete(registrationId);
-      
+
       // Clear cache and refetch
       cacheRef.current = { timestamp: 0, data: null };
       await fetchData(true);
-      
+
       setError(null);
     } catch (err) {
       if (err.status === 404) {
@@ -470,7 +470,7 @@ const AdminDashboard = ({ onLogout, user }) => {
       {activeTab === 'registrations' && (
         <>
           <div className="stats-container">
-            <div 
+            <div
               className={`stat-card ${!isSlotAdmin && slotFilter === 'all' ? 'selected' : ''}`}
               onClick={() => !isSlotAdmin && setSlotFilter('all')}
               style={{ cursor: !isSlotAdmin ? 'pointer' : 'default' }}
@@ -481,8 +481,8 @@ const AdminDashboard = ({ onLogout, user }) => {
             {slots.map((slot) => {
               const maxForSlot = slot.max_registrations || 15;
               return (
-                <div 
-                  key={slot.id} 
+                <div
+                  key={slot.id}
                   className={`stat-card ${slotCounts[slot.id] >= maxForSlot ? 'full' : ''} ${!isSlotAdmin && slotFilter === slot.id ? 'selected' : ''}`}
                   onClick={() => !isSlotAdmin && setSlotFilter(slot.id)}
                   style={{ cursor: !isSlotAdmin ? 'pointer' : 'default' }}
@@ -494,128 +494,128 @@ const AdminDashboard = ({ onLogout, user }) => {
             })}
           </div>
 
-      {!isSlotAdmin && (
-        <div className="filter-section">
-          <div className="filter-controls">
-            <h3>Showing: {slotFilter === 'all' ? 'All Slots' : getSlotDisplayName(slotFilter)}</h3>
-            <input
-              type="text"
-              placeholder="Search registrations..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="search-input"
-            />
-          </div>
-          <div className="download-buttons">
-            <button onClick={handleDownloadAll} className="download-btn">
-              Download All
-            </button>
-            <button onClick={handleDownloadFiltered} className="download-btn secondary">
-              Download {slotFilter === 'all' ? 'All' : getSlotDisplayName(slotFilter)}
-            </button>
-          </div>
-        </div>
-      )}
+          {!isSlotAdmin && (
+            <div className="filter-section">
+              <div className="filter-controls">
+                <h3>Showing: {slotFilter === 'all' ? 'All Slots' : getSlotDisplayName(slotFilter)}</h3>
+                <input
+                  type="text"
+                  placeholder="Search registrations..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="search-input"
+                />
+              </div>
+              <div className="download-buttons">
+                <button onClick={handleDownloadAll} className="download-btn">
+                  Download All
+                </button>
+                <button onClick={handleDownloadFiltered} className="download-btn secondary">
+                  Download {slotFilter === 'all' ? 'All' : getSlotDisplayName(slotFilter)}
+                </button>
+              </div>
+            </div>
+          )}
 
-      {isSlotAdmin && (
-        <div className="filter-section">
-          <div className="filter-controls">
-            <h3>{userSlotName} Registrations</h3>
-            <input
-              type="text"
-              placeholder="Search registrations..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="search-input"
-            />
-          </div>
-          <div className="download-buttons">
-            <button onClick={handleDownloadFiltered} className="download-btn">
-              Download {userSlotName} Data
-            </button>
-          </div>
-        </div>
-      )}
+          {isSlotAdmin && (
+            <div className="filter-section">
+              <div className="filter-controls">
+                <h3>{userSlotName} Registrations</h3>
+                <input
+                  type="text"
+                  placeholder="Search registrations..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="search-input"
+                />
+              </div>
+              <div className="download-buttons">
+                <button onClick={handleDownloadFiltered} className="download-btn">
+                  Download {userSlotName} Data
+                </button>
+              </div>
+            </div>
+          )}
 
           {error && <div className="error-message">{error}</div>}
 
           <div className="table-container">
-        <table className="registrations-table">
-          <thead>
-            <tr>
-              <th onClick={() => handleSort('name')} style={{ cursor: 'pointer' }}>
-                Name{getSortIcon('name')}
-              </th>
-              <th onClick={() => handleSort('fathers_name')} style={{ cursor: 'pointer' }}>
-                Father's Name{getSortIcon('fathers_name')}
-              </th>
-              <th onClick={() => handleSort('date_of_birth')} style={{ cursor: 'pointer' }}>
-                Date of Birth{getSortIcon('date_of_birth')}
-              </th>
-              <th onClick={() => handleSort('email')} style={{ cursor: 'pointer' }}>
-                Email{getSortIcon('email')}
-              </th>
-              <th onClick={() => handleSort('whatsapp_mobile')} style={{ cursor: 'pointer' }}>
-                WhatsApp Mobile{getSortIcon('whatsapp_mobile')}
-              </th>
-              <th onClick={() => handleSort('tajweed_level')} style={{ cursor: 'pointer' }}>
-                Level of Tajweed{getSortIcon('tajweed_level')}
-              </th>
-              <th>Education</th>
-              <th>Profession</th>
-              <th>Previous Hifz</th>
-              <th onClick={() => handleSort('slot')} style={{ cursor: 'pointer' }}>
-                Time Slot{getSortIcon('slot')}
-              </th>
-              <th onClick={() => handleSort('registered_at')} style={{ cursor: 'pointer' }}>
-                Registered At{getSortIcon('registered_at')}
-              </th>
-              {isSlotAdmin && <th>Actions</th>}
-            </tr>
-          </thead>
-          <tbody>
-            {sortedRegistrations.length === 0 ? (
-              <tr>
-                <td colSpan={isSlotAdmin ? "12" : "11"} className="no-data">{debouncedSearch ? 'No matching registrations found' : 'No registrations found'}</td>
-              </tr>
-            ) : (
-              sortedRegistrations.map((reg) => (
-                <tr key={reg.id}>
-                  <td>{reg.name}</td>
-                  <td>{reg.fathers_name || '-'}</td>
-                  <td>{formatDateToDDMMYYYY(reg.date_of_birth) || '-'}</td>
-                  <td>{reg.email}</td>
-                  <td>{reg.whatsapp_mobile}</td>
-                  <td>{reg.tajweed_level || '-'}</td>
-                  <td>{reg.education || '-'}</td>
-                  <td>{reg.profession || '-'}</td>
-                  <td>{reg.previous_hifz || '-'}</td>
-                  <td><span className="slot-badge">{reg.expand?.slot_id?.display_name || getSlotDisplayName(reg.slot_id)}</span></td>
-                  <td>{reg.registered_at ? new Date(reg.registered_at).toLocaleString('en-GB', { 
-                    day: '2-digit', 
-                    month: '2-digit', 
-                    year: 'numeric', 
-                    hour: '2-digit', 
-                    minute: '2-digit',
-                    hour12: true 
-                  }) : '-'}</td>
-                  {isSlotAdmin && (
-                    <td>
-                      <button
-                        onClick={() => handleDeleteRegistration(reg.id, reg.name)}
-                        className="delete-btn"
-                        title="Delete registration"
-                        disabled={deletingId === reg.id}
-                      >
-                        {deletingId === reg.id ? 'Deleting...' : 'Delete'}
-                      </button>
-                    </td>
-                  )}
+            <table className="registrations-table">
+              <thead>
+                <tr>
+                  <th onClick={() => handleSort('name')} style={{ cursor: 'pointer' }}>
+                    Name{getSortIcon('name')}
+                  </th>
+                  <th onClick={() => handleSort('fathers_name')} style={{ cursor: 'pointer' }}>
+                    Father's Name{getSortIcon('fathers_name')}
+                  </th>
+                  <th onClick={() => handleSort('date_of_birth')} style={{ cursor: 'pointer' }}>
+                    Date of Birth{getSortIcon('date_of_birth')}
+                  </th>
+                  <th onClick={() => handleSort('email')} style={{ cursor: 'pointer' }}>
+                    Email{getSortIcon('email')}
+                  </th>
+                  <th onClick={() => handleSort('whatsapp_mobile')} style={{ cursor: 'pointer' }}>
+                    WhatsApp Mobile{getSortIcon('whatsapp_mobile')}
+                  </th>
+                  <th onClick={() => handleSort('tajweed_level')} style={{ cursor: 'pointer' }}>
+                    Level of Tajweed{getSortIcon('tajweed_level')}
+                  </th>
+                  <th>Education</th>
+                  <th>Profession</th>
+                  <th>Previous Hifz</th>
+                  <th onClick={() => handleSort('slot')} style={{ cursor: 'pointer' }}>
+                    Time Slot{getSortIcon('slot')}
+                  </th>
+                  <th onClick={() => handleSort('registered_at')} style={{ cursor: 'pointer' }}>
+                    Registered At{getSortIcon('registered_at')}
+                  </th>
+                  {isSlotAdmin && <th>Actions</th>}
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+              </thead>
+              <tbody>
+                {sortedRegistrations.length === 0 ? (
+                  <tr>
+                    <td colSpan={isSlotAdmin ? "12" : "11"} className="no-data">{debouncedSearch ? 'No matching registrations found' : 'No registrations found'}</td>
+                  </tr>
+                ) : (
+                  sortedRegistrations.map((reg) => (
+                    <tr key={reg.id}>
+                      <td>{reg.name}</td>
+                      <td>{reg.fathers_name || '-'}</td>
+                      <td>{formatDateToDDMMYYYY(reg.date_of_birth) || '-'}</td>
+                      <td>{reg.email}</td>
+                      <td>{reg.whatsapp_mobile}</td>
+                      <td>{reg.tajweed_level || '-'}</td>
+                      <td>{reg.education || '-'}</td>
+                      <td>{reg.profession || '-'}</td>
+                      <td>{reg.previous_hifz || '-'}</td>
+                      <td><span className="slot-badge">{reg.expand?.slot_id?.display_name || getSlotDisplayName(reg.slot_id)}</span></td>
+                      <td>{reg.registered_at ? new Date(reg.registered_at).toLocaleString('en-GB', {
+                        day: '2-digit',
+                        month: '2-digit',
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        hour12: true
+                      }) : '-'}</td>
+                      {isSlotAdmin && (
+                        <td>
+                          <button
+                            onClick={() => handleDeleteRegistration(reg.id, reg.name)}
+                            className="delete-btn"
+                            title="Delete registration"
+                            disabled={deletingId === reg.id}
+                          >
+                            {deletingId === reg.id ? 'Deleting...' : 'Delete'}
+                          </button>
+                        </td>
+                      )}
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
           </div>
         </>
       )}
@@ -641,7 +641,7 @@ const AdminDashboard = ({ onLogout, user }) => {
       )}
 
       {activeTab === 'reports' && isSuperAdmin && (
-        <Reports />
+        <Reports isSuperAdmin={isSuperAdmin} />
       )}
 
       {activeTab === 'attendance' && isSlotAdmin && (
