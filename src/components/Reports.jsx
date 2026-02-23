@@ -207,8 +207,17 @@ const Reports = ({ isSuperAdmin = false }) => {
 
       let yPosition = margin;
 
+      // Helper: load an image from a data URI and return its natural dimensions
+      const getImageNaturalSize = (dataUri) => new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => resolve({ w: img.naturalWidth, h: img.naturalHeight });
+        img.onerror = () => resolve({ w: 200, h: 150 });
+        img.src = dataUri;
+      });
+
       // Helper function to create HTML element for a class section
-      const createClassElement = (classItem, isFirst = false) => {
+      // Returns a Promise so image dimensions can be measured before rendering
+      const createClassElement = async (classItem, isFirst = false) => {
         const container = document.createElement('div');
         container.style.width = '700px';
         container.style.padding = '20px';
@@ -256,13 +265,22 @@ const Reports = ({ isSuperAdmin = false }) => {
               <div style="display: flex; flex-wrap: wrap; gap: 8px;">
           `;
 
-          classItem.attachments.forEach((attachment) => {
+          for (const attachment of classItem.attachments) {
+            // Pre-measure the image so we can emit explicit width/height.
+            // html2canvas does not support object-fit, so we must avoid it.
+            const MAX_W = 200;
+            const MAX_H = 150;
+            const { w: natW, h: natH } = await getImageNaturalSize(attachment.data);
+            let dispW = natW;
+            let dispH = natH;
+            if (dispW > MAX_W) { dispH = Math.round(dispH * MAX_W / dispW); dispW = MAX_W; }
+            if (dispH > MAX_H) { dispW = Math.round(dispW * MAX_H / dispH); dispH = MAX_H; }
             html += `
-              <div style="border: 1px solid #dee2e6; border-radius: 4px; overflow: hidden;">
-                <img src="${attachment.data}" alt="${attachment.name}" style="max-width: 200px; max-height: 150px; object-fit: contain; display: block;" />
+              <div style="border: 1px solid #dee2e6; border-radius: 4px; display: inline-block;">
+                <img src="${attachment.data}" alt="${attachment.name}" width="${dispW}" height="${dispH}" style="display: block;" />
               </div>
             `;
-          });
+          }
 
           html += `
               </div>
@@ -279,8 +297,8 @@ const Reports = ({ isSuperAdmin = false }) => {
         const classItem = classDataWithAttachments[i];
         const isFirst = i === 0;
 
-        // Create the element for this class
-        const element = createClassElement(classItem, isFirst);
+        // Create the element for this class (async – images are pre-measured)
+        const element = await createClassElement(classItem, isFirst);
         element.style.position = 'absolute';
         element.style.left = '-9999px';
         document.body.appendChild(element);
@@ -367,6 +385,21 @@ const Reports = ({ isSuperAdmin = false }) => {
         }
         return bytes;
       };
+
+      // Helper: resolve the actual pixel dimensions of an image from its data URI,
+      // then scale it down (preserving aspect ratio) so it fits within maxW×maxH.
+      const getImageDimensions = (dataUri, maxW = 300, maxH = 400) => new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => {
+          let w = img.naturalWidth;
+          let h = img.naturalHeight;
+          if (w > maxW) { h = Math.round(h * maxW / w); w = maxW; }
+          if (h > maxH) { w = Math.round(w * maxH / h); h = maxH; }
+          resolve({ width: w, height: h });
+        };
+        img.onerror = () => resolve({ width: maxW, height: Math.round(maxW * 3 / 4) });
+        img.src = dataUri;
+      });
 
       const children = [];
 
@@ -455,13 +488,14 @@ const Reports = ({ isSuperAdmin = false }) => {
           for (const attachment of classItem.attachments) {
             try {
               const imageData = base64ToUint8Array(attachment.data);
+              const { width: imgW, height: imgH } = await getImageDimensions(attachment.data);
               children.push(
                 new Paragraph({
                   spacing: { after: 100 },
                   children: [
                     new ImageRun({
                       data: imageData,
-                      transformation: { width: 300, height: 225 },
+                      transformation: { width: imgW, height: imgH },
                       type: 'png',
                     }),
                   ],
