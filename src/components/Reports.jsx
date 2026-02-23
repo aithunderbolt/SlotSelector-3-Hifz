@@ -207,89 +207,56 @@ const Reports = ({ isSuperAdmin = false }) => {
 
       let yPosition = margin;
 
-      // Helper: load an image from a data URI and return its natural dimensions
+      // Helper: load an image and return its natural pixel dimensions
       const getImageNaturalSize = (dataUri) => new Promise((resolve) => {
         const img = new Image();
         img.onload = () => resolve({ w: img.naturalWidth, h: img.naturalHeight });
-        img.onerror = () => resolve({ w: 200, h: 150 });
+        img.onerror = () => resolve({ w: 400, h: 300 });
         img.src = dataUri;
       });
 
-      // Helper function to create HTML element for a class section
-      // Returns a Promise so image dimensions can be measured before rendering
-      const createClassElement = async (classItem, isFirst = false) => {
-        const container = document.createElement('div');
-        container.style.width = '700px';
-        container.style.padding = '20px';
-        container.style.backgroundColor = 'white';
-        container.style.fontFamily = 'Arial, Tahoma, sans-serif';
-        container.style.direction = 'ltr';
+      // Helper: re-draw an image at target pixel dimensions and export as JPEG
+      // at the given quality — dramatically reduces file size vs. raw source data.
+      const compressImage = (dataUri, targetW, targetH, quality = 0.72) => new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => {
+          const c = document.createElement('canvas');
+          c.width = Math.max(1, Math.round(targetW));
+          c.height = Math.max(1, Math.round(targetH));
+          c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+          resolve(c.toDataURL('image/jpeg', quality));
+        };
+        img.onerror = () => resolve(dataUri);
+        img.src = dataUri;
+      });
 
-        let html = '';
+      // Helper: place a canvas onto the PDF, slicing it across pages if it is taller
+      // than the remaining space. This prevents any canvas content from being clipped.
+      const addCanvasToPdf = (canvas) => {
+        const pxToMm = contentWidth / canvas.width;
+        const fullPagePx = Math.floor((pdfHeight - 2 * margin) / pxToMm);
 
-        // Add title only for first class
-        if (isFirst) {
-          html += `
-            <div style="text-align: center; margin-bottom: 20px;">
-              <h1 style="font-size: 22px; margin-bottom: 8px;">Class Report</h1>
-              <p style="font-size: 11px; color: #666;">Generated on: ${new Date().toLocaleDateString()}</p>
-            </div>
-          `;
-        }
+        let srcY = 0;
+        while (srcY < canvas.height) {
+          const slicePx = Math.min(fullPagePx, canvas.height - srcY);
+          const sliceMm = slicePx * pxToMm;
 
-        html += `
-          <div style="margin-bottom: 15px;">
-            <h2 style="font-size: 16px; border-bottom: 2px solid #3498db; padding-bottom: 6px; margin-bottom: 12px;">${classItem.name}</h2>
-            <div style="font-size: 12px; line-height: 1.8;">
-              <div style="margin-bottom: 8px;">
-                <strong>Supervisor:</strong> ${supervisorName}
-              </div>
-              <div style="margin-bottom: 8px;">
-                <strong>Name of Teachers:</strong> ${classItem.teacherNames}
-              </div>
-              <div style="margin-bottom: 8px; direction: auto;">
-                <strong>Class Summary:</strong> <span style="unicode-bidi: embed;">${classItem.description || 'N/A'}</span>
-              </div>
-              <div style="margin-bottom: 8px;">
-                <strong>Total Students:</strong> ${classItem.totalStudents}
-              </div>
-            </div>
-          </div>
-        `;
-
-        // Add attendance images if available
-        if (classItem.attachments && classItem.attachments.length > 0) {
-          html += `
-            <div style="margin-top: 12px; margin-bottom: 15px;">
-              <div style="font-size: 12px; font-weight: bold; margin-bottom: 8px;">Attendance Images:</div>
-              <div style="display: flex; flex-wrap: wrap; gap: 8px;">
-          `;
-
-          for (const attachment of classItem.attachments) {
-            // Pre-measure the image so we can emit explicit width/height.
-            // html2canvas does not support object-fit, so we must avoid it.
-            const MAX_W = 200;
-            const MAX_H = 150;
-            const { w: natW, h: natH } = await getImageNaturalSize(attachment.data);
-            let dispW = natW;
-            let dispH = natH;
-            if (dispW > MAX_W) { dispH = Math.round(dispH * MAX_W / dispW); dispW = MAX_W; }
-            if (dispH > MAX_H) { dispW = Math.round(dispW * MAX_H / dispH); dispH = MAX_H; }
-            html += `
-              <div style="border: 1px solid #dee2e6; border-radius: 4px; display: inline-block;">
-                <img src="${attachment.data}" alt="${attachment.name}" width="${dispW}" height="${dispH}" style="display: block;" />
-              </div>
-            `;
+          if (yPosition + sliceMm > pdfHeight - margin) {
+            pdf.addPage();
+            yPosition = margin;
           }
 
-          html += `
-              </div>
-            </div>
-          `;
-        }
+          const sliceCanvas = document.createElement('canvas');
+          sliceCanvas.width = canvas.width;
+          sliceCanvas.height = slicePx;
+          sliceCanvas.getContext('2d').drawImage(
+            canvas, 0, srcY, canvas.width, slicePx, 0, 0, canvas.width, slicePx
+          );
 
-        container.innerHTML = html;
-        return container;
+          pdf.addImage(sliceCanvas.toDataURL('image/jpeg', 0.82), 'JPEG', margin, yPosition, contentWidth, sliceMm);
+          yPosition += sliceMm;
+          srcY += fullPagePx;
+        }
       };
 
       // Process each class section
@@ -297,57 +264,111 @@ const Reports = ({ isSuperAdmin = false }) => {
         const classItem = classDataWithAttachments[i];
         const isFirst = i === 0;
 
-        // Create the element for this class (async – images are pre-measured)
-        const element = await createClassElement(classItem, isFirst);
-        element.style.position = 'absolute';
-        element.style.left = '-9999px';
-        document.body.appendChild(element);
+        // --- Step 1: render only the text block (no images) via html2canvas ---
+        const container = document.createElement('div');
+        container.style.cssText = 'width:700px;padding:20px;background:#fff;font-family:Arial,Tahoma,sans-serif;direction:ltr;';
 
-        // Wait for fonts to load
-        await document.fonts.ready;
+        let html = '';
 
-        // Convert to canvas
-        const canvas = await html2canvas(element, {
-          scale: 2,
-          useCORS: true,
-          logging: false,
-          backgroundColor: '#ffffff'
-        });
-
-        // Remove element
-        document.body.removeChild(element);
-
-        // Calculate image dimensions
-        const imgWidth = contentWidth;
-        const ratio = imgWidth / canvas.width;
-        const imgHeight = canvas.height * ratio;
-
-        // Check if we need a new page (leave some margin for separator)
-        if (i > 0 && yPosition + imgHeight > pdfHeight - margin) {
-          pdf.addPage();
-          yPosition = margin;
+        if (isFirst) {
+          html += `
+            <div style="text-align:center;margin-bottom:20px;">
+              <h1 style="font-size:22px;margin-bottom:8px;">Class Report</h1>
+              <p style="font-size:11px;color:#666;">Generated on: ${new Date().toLocaleDateString()}</p>
+            </div>
+          `;
         }
 
-        // Add image to PDF
-        const imgData = canvas.toDataURL('image/jpeg', 0.95);
-        pdf.addImage(imgData, 'JPEG', margin, yPosition, imgWidth, imgHeight);
+        html += `
+          <div style="margin-bottom:15px;">
+            <h2 style="font-size:16px;border-bottom:2px solid #3498db;padding-bottom:6px;margin-bottom:12px;">${classItem.name}</h2>
+            <div style="font-size:12px;line-height:1.8;">
+              <div style="margin-bottom:8px;"><strong>Supervisor:</strong> ${supervisorName}</div>
+              <div style="margin-bottom:8px;"><strong>Name of Teachers:</strong> ${classItem.teacherNames}</div>
+              <div style="margin-bottom:8px;direction:auto;"><strong>Class Summary:</strong> <span style="unicode-bidi:embed;">${classItem.description || 'N/A'}</span></div>
+              <div style="margin-bottom:8px;"><strong>Total Students:</strong> ${classItem.totalStudents}</div>
+              ${classItem.attachments && classItem.attachments.length > 0 ? '<div style="margin-top:10px;font-size:12px;font-weight:bold;">Attendance Images:</div>' : ''}
+            </div>
+          </div>
+        `;
 
-        yPosition += imgHeight;
+        container.innerHTML = html;
+        container.style.position = 'absolute';
+        container.style.left = '-9999px';
+        document.body.appendChild(container);
+        await document.fonts.ready;
 
-        // Add separator line (except for last item)
+        const textCanvas = await html2canvas(container, {
+          scale: 1.5,
+          useCORS: true,
+          logging: false,
+          backgroundColor: '#ffffff',
+        });
+
+        document.body.removeChild(container);
+
+        addCanvasToPdf(textCanvas);
+
+        // --- Step 2: add each attendance image directly to the PDF ---
+        if (classItem.attachments && classItem.attachments.length > 0) {
+          const IMG_GAP = 3;
+          const IMG_GAP_V = 4;
+          const COLS = 2;
+          const slotW = (contentWidth - IMG_GAP * (COLS - 1)) / COLS;
+          const MAX_H_MM = 90;
+
+          let col = 0;
+          let rowMaxH = 0;
+          let rowEntries = [];
+
+          const flushRow = () => {
+            if (rowEntries.length === 0) return;
+            if (yPosition + rowMaxH > pdfHeight - margin) {
+              pdf.addPage();
+              yPosition = margin;
+            }
+            for (const entry of rowEntries) {
+              pdf.addImage(entry.data, entry.fmt, entry.x, yPosition, entry.w, entry.h);
+            }
+            yPosition += rowMaxH + IMG_GAP_V;
+            rowEntries = [];
+            col = 0;
+            rowMaxH = 0;
+          };
+
+          const IMG_DPI = 96;
+          for (const attachment of classItem.attachments) {
+            const { w: natW, h: natH } = await getImageNaturalSize(attachment.data);
+            const scale = Math.min(slotW / natW, MAX_H_MM / natH);
+            const imgW = natW * scale;
+            const imgH = natH * scale;
+            const targetPxW = imgW / 25.4 * IMG_DPI;
+            const targetPxH = imgH / 25.4 * IMG_DPI;
+            const compressed = await compressImage(attachment.data, targetPxW, targetPxH);
+            const xPos = margin + col * (slotW + IMG_GAP);
+            rowEntries.push({ data: compressed, fmt: 'JPEG', x: xPos, w: imgW, h: imgH });
+            if (imgH > rowMaxH) rowMaxH = imgH;
+            col++;
+            if (col >= COLS) flushRow();
+          }
+          flushRow();
+        }
+
+        // Separator line between classes
         if (i < classDataWithAttachments.length - 1) {
-          // Check if separator and next section might need a new page
           yPosition += 3;
           if (yPosition + 5 < pdfHeight - margin) {
             pdf.setLineWidth(0.3);
             pdf.setDrawColor(200, 200, 200);
             pdf.line(margin, yPosition, pdfWidth - margin, yPosition);
             yPosition += 5;
+          } else {
+            pdf.addPage();
+            yPosition = margin;
           }
         }
       }
 
-      // Save the PDF
       pdf.save(`Class_Report_${new Date().toISOString().split('T')[0]}.pdf`);
     } catch (err) {
       console.error('Error generating PDF:', err);
@@ -388,7 +409,7 @@ const Reports = ({ isSuperAdmin = false }) => {
 
       // Helper: resolve the actual pixel dimensions of an image from its data URI,
       // then scale it down (preserving aspect ratio) so it fits within maxW×maxH.
-      const getImageDimensions = (dataUri, maxW = 300, maxH = 400) => new Promise((resolve) => {
+      const getImageDimensions = (dataUri, maxW = 480, maxH = 360) => new Promise((resolve) => {
         const img = new Image();
         img.onload = () => {
           let w = img.naturalWidth;
