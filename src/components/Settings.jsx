@@ -7,6 +7,7 @@ const Settings = () => {
   const [maxRegistrations, setMaxRegistrations] = useState('15');
   const [maxAttachmentSizeKB, setMaxAttachmentSizeKB] = useState('400');
   const [supervisorName, setSupervisorName] = useState('');
+  const [reportFileName, setReportFileName] = useState('Hifz');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState(null);
@@ -19,18 +20,20 @@ const Settings = () => {
     try {
       setLoading(true);
       const settings = await pb.collection('settings').getFullList({
-        filter: 'key = "form_title" || key = "max_registrations_per_slot" || key = "max_attachment_size_kb" || key = "supervisor_name"',
+        filter: 'key = "form_title" || key = "max_registrations_per_slot" || key = "max_attachment_size_kb" || key = "supervisor_name" || key = "report_file_name"',
       });
 
       const titleSetting = settings.find(s => s.key === 'form_title');
       const maxRegSetting = settings.find(s => s.key === 'max_registrations_per_slot');
       const maxAttachmentSetting = settings.find(s => s.key === 'max_attachment_size_kb');
       const supervisorSetting = settings.find(s => s.key === 'supervisor_name');
+      const reportFileNameSetting = settings.find(s => s.key === 'report_file_name');
 
       setFormTitle(titleSetting?.value || 'Hifz Registration Form');
       setMaxRegistrations(maxRegSetting?.value || '15');
       setMaxAttachmentSizeKB(maxAttachmentSetting?.value || '400');
       setSupervisorName(supervisorSetting?.value || '');
+      setReportFileName(reportFileNameSetting?.value || 'Hifz');
     } catch (err) {
       console.error('Error fetching settings:', err);
       setMessage({ type: 'error', text: 'Failed to load settings' });
@@ -137,6 +140,22 @@ const Settings = () => {
         });
       }
 
+      // Check if report_file_name exists
+      const reportFileNameSettings = await pb.collection('settings').getFullList({
+        filter: 'key = "report_file_name"',
+      });
+
+      if (reportFileNameSettings.length > 0) {
+        await pb.collection('settings').update(reportFileNameSettings[0].id, {
+          value: reportFileName.trim(),
+        });
+      } else {
+        await pb.collection('settings').create({
+          key: 'report_file_name',
+          value: reportFileName.trim(),
+        });
+      }
+
       setMessage({ type: 'success', text: 'Settings saved successfully!' });
     } catch (err) {
       console.error('Error saving settings:', err);
@@ -211,6 +230,20 @@ const Settings = () => {
             maxLength={100}
           />
           <small>This name will be displayed as the supervisor in the class reports</small>
+        </div>
+
+        <div className="form-group">
+          <label htmlFor="reportFileName">Report File Name</label>
+          <input
+            type="text"
+            id="reportFileName"
+            value={reportFileName}
+            onChange={(e) => setReportFileName(e.target.value)}
+            disabled={saving}
+            placeholder="Enter report file name"
+            maxLength={100}
+          />
+          <small>Downloaded reports will be named as: {reportFileName}-{new Date().toISOString().split('T')[0]}.pdf</small>
         </div>
 
         <button type="submit" disabled={saving} className="save-btn">

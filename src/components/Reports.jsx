@@ -16,6 +16,7 @@ const Reports = ({ isSuperAdmin = false }) => {
   const [generating, setGenerating] = useState(false);
   const [generatingWord, setGeneratingWord] = useState(false);
   const [supervisorName, setSupervisorName] = useState('Farheen');
+  const [reportFileName, setReportFileName] = useState('Hifz');
 
   const fetchData = async () => {
     try {
@@ -42,18 +43,21 @@ const Reports = ({ isSuperAdmin = false }) => {
         })
       ]);
 
-      // Fetch supervisor name separately (non-critical)
+      // Fetch supervisor name and report file name separately (non-critical)
       try {
         const settingsData = await pb.collection('settings').getFullList({
-          filter: 'key = "supervisor_name"',
-          fields: 'value',
+          filter: 'key = "supervisor_name" || key = "report_file_name"',
+          fields: 'key,value',
         });
 
         if (settingsData && settingsData.length > 0) {
-          setSupervisorName(settingsData[0].value);
+          const supervisorSetting = settingsData.find(s => s.key === 'supervisor_name');
+          const reportFileNameSetting = settingsData.find(s => s.key === 'report_file_name');
+          if (supervisorSetting) setSupervisorName(supervisorSetting.value);
+          if (reportFileNameSetting) setReportFileName(reportFileNameSetting.value);
         }
       } catch (err) {
-        console.error('Error fetching supervisor name setting:', err);
+        console.error('Error fetching settings:', err);
         // Fallback to default if error
       }
 
@@ -369,7 +373,7 @@ const Reports = ({ isSuperAdmin = false }) => {
         }
       }
 
-      pdf.save(`Hifz-Report-${new Date().toISOString().split('T')[0]}.pdf`);
+      pdf.save(`${reportFileName}-${new Date().toISOString().split('T')[0]}.pdf`);
     } catch (err) {
       console.error('Error generating PDF:', err);
       alert('Error generating PDF. Please try again.');
@@ -534,7 +538,7 @@ const Reports = ({ isSuperAdmin = false }) => {
       });
 
       const blob = await Packer.toBlob(doc);
-      saveAs(blob, `Hifz-Report-${new Date().toISOString().split('T')[0]}.docx`);
+      saveAs(blob, `${reportFileName}-${new Date().toISOString().split('T')[0]}.docx`);
     } catch (err) {
       console.error('Error generating Word document:', err);
       alert('Error generating Word document. Please try again.');
