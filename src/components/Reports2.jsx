@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { pb } from '../lib/supabaseClient';
 import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 import { Document, Packer, Paragraph, TextRun, HeadingLevel, ImageRun, BorderStyle } from 'docx';
 import { saveAs } from 'file-saver';
 import './Reports2.css';
@@ -276,94 +277,62 @@ const Reports2 = ({ isSuperAdmin = false }) => {
         }
       };
 
-      // Helper: render text block for a class directly via jsPDF (replaces html2canvas)
-      const renderClassText = (classItem, isFirst) => {
+      // Helper: render text block for a class via html2canvas for proper Arabic rendering
+      const renderClassText = async (classItem, isFirst) => {
+        // Build an offscreen DOM element styled to match the PDF layout
+        const container = document.createElement('div');
+        container.style.cssText = `
+          position: fixed; left: -9999px; top: 0;
+          width: ${contentWidth * 3.78}px;
+          background: white;
+          font-family: 'Segoe UI', Tahoma, Arial, sans-serif;
+          padding: 0; margin: 0;
+          direction: ltr;
+        `;
+        document.body.appendChild(container);
+
+        let html = '';
+
         if (isFirst) {
-          // Report title
-          ensureSpace(25);
-          pdf.setFontSize(22);
-          pdf.setFont('helvetica', 'bold');
-          pdf.text('Class Report', pdfWidth / 2, yPosition + 6, { align: 'center' });
-          yPosition += 10;
-          pdf.setFontSize(11);
-          pdf.setFont('helvetica', 'normal');
-          pdf.setTextColor(102, 102, 102);
-          pdf.text(`Generated on: ${new Date().toLocaleDateString()}`, pdfWidth / 2, yPosition + 4, { align: 'center' });
-          pdf.setTextColor(0, 0, 0);
-          yPosition += 12;
+          html += `
+            <div style="text-align:center;margin-bottom:8px;">
+              <div style="font-size:22px;font-weight:bold;">Class Report</div>
+              <div style="font-size:11px;color:#666;margin-top:4px;">Generated on: ${new Date().toLocaleDateString()}</div>
+            </div>
+          `;
         }
 
-        // Class name heading with blue underline
-        ensureSpace(20);
-        pdf.setFontSize(16);
-        pdf.setFont('helvetica', 'bold');
-        pdf.text(classItem.name, margin, yPosition + 5);
-        yPosition += 8;
-        pdf.setDrawColor(52, 152, 219);
-        pdf.setLineWidth(0.5);
-        pdf.line(margin, yPosition, pdfWidth - margin, yPosition);
-        yPosition += 6;
+        html += `
+          <div style="font-size:16px;font-weight:bold;margin-bottom:2px;">${classItem.name}</div>
+          <div style="border-bottom:2px solid #3498db;margin-bottom:8px;"></div>
+          <div style="font-size:12px;margin-bottom:5px;"><b>Supervisor: </b>${supervisorName}</div>
+          <div style="font-size:12px;margin-bottom:5px;"><b>Name of Teachers: </b>${classItem.teacherNames}</div>
+          <div dir="auto" style="font-size:12px;margin-bottom:5px;"><b>Class Summary: </b>${classItem.description || 'N/A'}</div>
+          <div style="font-size:12px;margin-bottom:5px;"><b>Total Students: </b>${classItem.totalStudents}</div>
+        `;
 
-        // Details
-        pdf.setFontSize(12);
-        const lineH = 7;
-
-        // Supervisor
-        ensureSpace(lineH);
-        pdf.setFont('helvetica', 'bold');
-        pdf.text('Supervisor: ', margin, yPosition + 4);
-        const supLabelW = pdf.getTextWidth('Supervisor: ');
-        pdf.setFont('helvetica', 'normal');
-        pdf.text(supervisorName, margin + supLabelW, yPosition + 4);
-        yPosition += lineH;
-
-        // Teachers
-        ensureSpace(lineH);
-        pdf.setFont('helvetica', 'bold');
-        pdf.text('Name of Teachers: ', margin, yPosition + 4);
-        const teachLabelW = pdf.getTextWidth('Name of Teachers: ');
-        pdf.setFont('helvetica', 'normal');
-        const teacherLines = pdf.splitTextToSize(classItem.teacherNames, contentWidth - teachLabelW);
-        pdf.text(teacherLines[0], margin + teachLabelW, yPosition + 4);
-        yPosition += lineH;
-        for (let t = 1; t < teacherLines.length; t++) {
-          ensureSpace(lineH);
-          pdf.text(teacherLines[t], margin + teachLabelW, yPosition + 4);
-          yPosition += lineH;
-        }
-
-        // Class Summary
-        ensureSpace(lineH);
-        pdf.setFont('helvetica', 'bold');
-        pdf.text('Class Summary: ', margin, yPosition + 4);
-        const summLabelW = pdf.getTextWidth('Class Summary: ');
-        pdf.setFont('helvetica', 'normal');
-        const descText = classItem.description || 'N/A';
-        const descLines = pdf.splitTextToSize(descText, contentWidth - summLabelW);
-        pdf.text(descLines[0], margin + summLabelW, yPosition + 4);
-        yPosition += lineH;
-        for (let d = 1; d < descLines.length; d++) {
-          ensureSpace(lineH);
-          pdf.text(descLines[d], margin + summLabelW, yPosition + 4);
-          yPosition += lineH;
-        }
-
-        // Total Students
-        ensureSpace(lineH);
-        pdf.setFont('helvetica', 'bold');
-        pdf.text('Total Students: ', margin, yPosition + 4);
-        const studLabelW = pdf.getTextWidth('Total Students: ');
-        pdf.setFont('helvetica', 'normal');
-        pdf.text(String(classItem.totalStudents), margin + studLabelW, yPosition + 4);
-        yPosition += lineH;
-
-        // Attendance Images label
         if (classItem.attachments && classItem.attachments.length > 0) {
-          ensureSpace(lineH);
-          yPosition += 2;
-          pdf.setFont('helvetica', 'bold');
-          pdf.text('Attendance Images:', margin, yPosition + 4);
-          yPosition += lineH;
+          html += `<div style="font-size:12px;font-weight:bold;margin-top:6px;">Attendance Images:</div>`;
+        }
+
+        container.innerHTML = html;
+
+        try {
+          const canvas = await html2canvas(container, {
+            scale: 2,
+            useCORS: true,
+            backgroundColor: '#ffffff',
+          });
+
+          const imgData = canvas.toDataURL('image/png');
+          const imgW = contentWidth;
+          const imgH = (canvas.height / canvas.width) * contentWidth;
+
+          ensureSpace(imgH);
+          pdf.addImage(imgData, 'PNG', margin, yPosition, imgW, imgH);
+          yPosition += imgH + 2;
+        } finally {
+          document.body.removeChild(container);
         }
       };
 
@@ -419,7 +388,8 @@ const Reports2 = ({ isSuperAdmin = false }) => {
         const classItem = classDataWithAttachments[i];
         const isFirst = i === 0;
 
-        renderClassText(classItem, isFirst);
+        // Render text block via html2canvas for proper Arabic text rendering
+        await renderClassText(classItem, isFirst);
 
         if (classItem.attachments && classItem.attachments.length > 0) {
           let col = 0;
