@@ -1,0 +1,29 @@
+﻿[36mvite v7.1.12 [32mbuilding for production...[36m[39m
+transforming...
+[32mظ£ô[39m 322 modules transformed.
+rendering chunks...
+computing gzip size...
+[2mdist/[22m[32mindex.html                    [39m[1m[2m    0.46 kB[22m[1m[22m[2m ظ¤é gzip:   0.30 kB[22m
+[2mdist/[22m[35massets/index-D10klrpp.css     [39m[1m[2m   38.69 kB[22m[1m[22m[2m ظ¤é gzip:   6.35 kB[22m
+[2mdist/[22m[36massets/purify.es-B9ZVCkUG.js  [39m[1m[2m   22.64 kB[22m[1m[22m[2m ظ¤é gzip:   8.75 kB[22m
+[2mdist/[22m[36massets/index.es-CxZFq18x.js   [39m[1m[2m  159.38 kB[22m[1m[22m[2m ظ¤é gzip:  53.43 kB[22m
+[2mdist/[22m[36massets/index-3QaQCYhb.js      [39m[1m[33m1,602.67 kB[39m[22m[2m ظ¤é gzip: 483.52 kB[22m
+node.exe : [33m
+At line:1 char:1
++ & "C:\nvm4w\nodejs/node.exe" 
+"C:\nvm4w\nodejs/node_modules/npm/bin/np ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: ([33m:String) [ 
+   ], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+(!) Some chunks are larger than 500 kB after minification. 
+Consider:
+- Using dynamic import() to code-split the application
+- Use build.rollupOptions.output.manualChunks to improve 
+chunking: https://rollupjs.org/configuration-options/#output-
+manualchunks
+- Adjust chunk size limit for this warning via 
+build.chunkSizeWarningLimit.[39m
+[32mظ£ô built in 2.92s[39m

@@ -1,12 +1,11 @@
 import { useState, useEffect, useMemo } from 'react';
 import { pb } from '../lib/supabaseClient';
 import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
 import { Document, Packer, Paragraph, TextRun, HeadingLevel, ImageRun, BorderStyle } from 'docx';
 import { saveAs } from 'file-saver';
-import './Reports.css';
+import './Reports2.css';
 
-const Reports = ({ isSuperAdmin = false }) => {
+const Reports2 = ({ isSuperAdmin = false }) => {
   const [classes, setClasses] = useState([]);
   const [attendanceRecords, setAttendanceRecords] = useState([]);
   const [users, setUsers] = useState([]);
@@ -161,26 +160,62 @@ const Reports = ({ isSuperAdmin = false }) => {
     return result;
   }, [classes, attendanceByClassId, slots.length, usersBySlotId]);
 
+  // Helper: run async tasks with controlled concurrency to avoid rate limits
+  // while still being faster than fully sequential execution.
+  const runWithConcurrency = async (tasks, concurrency = 3) => {
+    const results = new Array(tasks.length);
+    let idx = 0;
+    const runNext = async () => {
+      while (idx < tasks.length) {
+        const i = idx++;
+        results[i] = await tasks[i]();
+      }
+    };
+    const workers = [];
+    for (let w = 0; w < Math.min(concurrency, tasks.length); w++) {
+      workers.push(runNext());
+    }
+    await Promise.all(workers);
+    return results;
+  };
+
   // Lazy fetch attachments for specific attendance IDs
-  // Fetches each record individually to avoid response size limits with large base64 images
+  // Uses controlled concurrency (3 at a time) with 1 retry per failed request
+  // to stay within API limits while being significantly faster than sequential.
   const fetchAttachmentsForClass = async (attendanceIds) => {
     if (!attendanceIds || attendanceIds.length === 0) return [];
 
-    const allAttachments = [];
-    for (const id of attendanceIds) {
-      try {
-        const data = await pb.collection('attendance').getOne(id, {
-          fields: 'attachments',
-        });
+    const tasks = attendanceIds.map((id) => async () => {
+      for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+          const data = await pb.collection('attendance').getOne(id, {
+            fields: 'attachments',
+          });
 
-        if (data && data.attachments && data.attachments.length > 0) {
-          allAttachments.push(...data.attachments);
+          if (data && data.attachments && data.attachments.length > 0) {
+            return data.attachments;
+          }
+          return [];
+        } catch (err) {
+          console.error('Error fetching attachments for id', id, ':', err);
+          if (attempt === 0) { await new Promise(r => setTimeout(r, 300)); continue; }
+          return [];
         }
-      } catch (err) {
-        console.error('Error fetching attachments for id', id, ':', err);
       }
-    }
-    return allAttachments;
+      return [];
+    });
+
+    const results = await runWithConcurrency(tasks, 3);
+    return results.flat();
+  };
+
+  // Fetch attachments for all classes using controlled concurrency
+  const fetchAllClassAttachments = async (classes) => {
+    const tasks = classes.map((classItem) => async () => {
+      const attachments = await fetchAttachmentsForClass(classItem.attendanceIds);
+      return { ...classItem, attachments };
+    });
+    return runWithConcurrency(tasks, 2);
   };
 
   const generatePDF = async () => {
@@ -192,15 +227,8 @@ const Reports = ({ isSuperAdmin = false }) => {
         return;
       }
 
-      // Fetch attachments for all classes sequentially to avoid rate limits
-      const classDataWithAttachments = [];
-      for (const classItem of classData) {
-        const attachments = await fetchAttachmentsForClass(classItem.attendanceIds);
-        classDataWithAttachments.push({
-          ...classItem,
-          attachments,
-        });
-      }
+      // Fetch attachments for all classes with controlled concurrency
+      const classDataWithAttachments = await fetchAllClassAttachments(classData);
 
       // Create PDF
       const pdf = new jsPDF('p', 'mm', 'a4');
@@ -211,116 +239,165 @@ const Reports = ({ isSuperAdmin = false }) => {
 
       let yPosition = margin;
 
-      // Helper: load an image and return its natural pixel dimensions
-      const getImageNaturalSize = (dataUri) => new Promise((resolve) => {
-        const img = new Image();
-        img.onload = () => resolve({ w: img.naturalWidth, h: img.naturalHeight });
-        img.onerror = () => resolve({ w: 400, h: 300 });
-        img.src = dataUri;
-      });
+      // Note: image helpers (getImageNaturalSize / compressImage) have been
+      // replaced by inline img.decode() calls in the image processing tasks
+      // below. This guarantees full pixel decoding before drawImage, which
+      // prevents black-canvas issues during parallel processing.
 
-      // Helper: re-draw an image at target pixel dimensions and export as JPEG
-      // at the given quality — dramatically reduces file size vs. raw source data.
-      const compressImage = (dataUri, targetW, targetH, quality = 0.72) => new Promise((resolve) => {
-        const img = new Image();
-        img.onload = () => {
-          const c = document.createElement('canvas');
-          c.width = Math.max(1, Math.round(targetW));
-          c.height = Math.max(1, Math.round(targetH));
-          c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
-          resolve(c.toDataURL('image/jpeg', quality));
-        };
-        img.onerror = () => resolve(dataUri);
-        img.src = dataUri;
-      });
-
-      // Helper: place a canvas onto the PDF, slicing it across pages if it is taller
-      // than the remaining space. This prevents any canvas content from being clipped.
-      const addCanvasToPdf = (canvas) => {
-        const pxToMm = contentWidth / canvas.width;
-        const fullPagePx = Math.floor((pdfHeight - 2 * margin) / pxToMm);
-
-        let srcY = 0;
-        while (srcY < canvas.height) {
-          const slicePx = Math.min(fullPagePx, canvas.height - srcY);
-          const sliceMm = slicePx * pxToMm;
-
-          if (yPosition + sliceMm > pdfHeight - margin) {
-            pdf.addPage();
-            yPosition = margin;
-          }
-
-          const sliceCanvas = document.createElement('canvas');
-          sliceCanvas.width = canvas.width;
-          sliceCanvas.height = slicePx;
-          sliceCanvas.getContext('2d').drawImage(
-            canvas, 0, srcY, canvas.width, slicePx, 0, 0, canvas.width, slicePx
-          );
-
-          pdf.addImage(sliceCanvas.toDataURL('image/jpeg', 0.82), 'JPEG', margin, yPosition, contentWidth, sliceMm);
-          yPosition += sliceMm;
-          srcY += fullPagePx;
+      // Helper: ensure yPosition has room, else add a new page
+      const ensureSpace = (needed) => {
+        if (yPosition + needed > pdfHeight - margin) {
+          pdf.addPage();
+          yPosition = margin;
         }
       };
+
+      // Helper: render text block for a class directly via jsPDF (replaces html2canvas)
+      const renderClassText = (classItem, isFirst) => {
+        if (isFirst) {
+          // Report title
+          ensureSpace(25);
+          pdf.setFontSize(22);
+          pdf.setFont('helvetica', 'bold');
+          pdf.text('Class Report', pdfWidth / 2, yPosition + 6, { align: 'center' });
+          yPosition += 10;
+          pdf.setFontSize(11);
+          pdf.setFont('helvetica', 'normal');
+          pdf.setTextColor(102, 102, 102);
+          pdf.text(`Generated on: ${new Date().toLocaleDateString()}`, pdfWidth / 2, yPosition + 4, { align: 'center' });
+          pdf.setTextColor(0, 0, 0);
+          yPosition += 12;
+        }
+
+        // Class name heading with blue underline
+        ensureSpace(20);
+        pdf.setFontSize(16);
+        pdf.setFont('helvetica', 'bold');
+        pdf.text(classItem.name, margin, yPosition + 5);
+        yPosition += 8;
+        pdf.setDrawColor(52, 152, 219);
+        pdf.setLineWidth(0.5);
+        pdf.line(margin, yPosition, pdfWidth - margin, yPosition);
+        yPosition += 6;
+
+        // Details
+        pdf.setFontSize(12);
+        const lineH = 7;
+
+        // Supervisor
+        ensureSpace(lineH);
+        pdf.setFont('helvetica', 'bold');
+        pdf.text('Supervisor: ', margin, yPosition + 4);
+        const supLabelW = pdf.getTextWidth('Supervisor: ');
+        pdf.setFont('helvetica', 'normal');
+        pdf.text(supervisorName, margin + supLabelW, yPosition + 4);
+        yPosition += lineH;
+
+        // Teachers
+        ensureSpace(lineH);
+        pdf.setFont('helvetica', 'bold');
+        pdf.text('Name of Teachers: ', margin, yPosition + 4);
+        const teachLabelW = pdf.getTextWidth('Name of Teachers: ');
+        pdf.setFont('helvetica', 'normal');
+        const teacherLines = pdf.splitTextToSize(classItem.teacherNames, contentWidth - teachLabelW);
+        pdf.text(teacherLines[0], margin + teachLabelW, yPosition + 4);
+        yPosition += lineH;
+        for (let t = 1; t < teacherLines.length; t++) {
+          ensureSpace(lineH);
+          pdf.text(teacherLines[t], margin + teachLabelW, yPosition + 4);
+          yPosition += lineH;
+        }
+
+        // Class Summary
+        ensureSpace(lineH);
+        pdf.setFont('helvetica', 'bold');
+        pdf.text('Class Summary: ', margin, yPosition + 4);
+        const summLabelW = pdf.getTextWidth('Class Summary: ');
+        pdf.setFont('helvetica', 'normal');
+        const descText = classItem.description || 'N/A';
+        const descLines = pdf.splitTextToSize(descText, contentWidth - summLabelW);
+        pdf.text(descLines[0], margin + summLabelW, yPosition + 4);
+        yPosition += lineH;
+        for (let d = 1; d < descLines.length; d++) {
+          ensureSpace(lineH);
+          pdf.text(descLines[d], margin + summLabelW, yPosition + 4);
+          yPosition += lineH;
+        }
+
+        // Total Students
+        ensureSpace(lineH);
+        pdf.setFont('helvetica', 'bold');
+        pdf.text('Total Students: ', margin, yPosition + 4);
+        const studLabelW = pdf.getTextWidth('Total Students: ');
+        pdf.setFont('helvetica', 'normal');
+        pdf.text(String(classItem.totalStudents), margin + studLabelW, yPosition + 4);
+        yPosition += lineH;
+
+        // Attendance Images label
+        if (classItem.attachments && classItem.attachments.length > 0) {
+          ensureSpace(lineH);
+          yPosition += 2;
+          pdf.setFont('helvetica', 'bold');
+          pdf.text('Attendance Images:', margin, yPosition + 4);
+          yPosition += lineH;
+        }
+      };
+
+      // Pre-process all images across all classes in parallel batches
+      const IMG_GAP = 3;
+      const IMG_GAP_V = 4;
+      const COLS = 2;
+      const slotW = (contentWidth - IMG_GAP * (COLS - 1)) / COLS;
+      const MAX_H_MM = 90;
+      const IMG_DPI = 96;
+
+      const imageTaskList = [];
+      for (let ci = 0; ci < classDataWithAttachments.length; ci++) {
+        const attachments = classDataWithAttachments[ci].attachments;
+        if (!attachments || attachments.length === 0) continue;
+        for (let ai = 0; ai < attachments.length; ai++) {
+          imageTaskList.push({ classIdx: ci, attachIdx: ai, dataUri: attachments[ai].data });
+        }
+      }
+
+      const processedImages = {};
+      const imgTasks = imageTaskList.map((item) => async () => {
+        // Load and fully decode the image before any canvas operations
+        const sizeImg = new Image();
+        sizeImg.src = item.dataUri;
+        let natW = 400, natH = 300;
+        try {
+          await sizeImg.decode();
+          natW = sizeImg.naturalWidth;
+          natH = sizeImg.naturalHeight;
+        } catch { /* use defaults */ }
+
+        const scale = Math.min(slotW / natW, MAX_H_MM / natH);
+        const imgW = natW * scale;
+        const imgH = natH * scale;
+        const targetPxW = imgW / 25.4 * IMG_DPI;
+        const targetPxH = imgH / 25.4 * IMG_DPI;
+
+        // Compress using fully decoded image
+        const c = document.createElement('canvas');
+        c.width = Math.max(1, Math.round(targetPxW));
+        c.height = Math.max(1, Math.round(targetPxH));
+        c.getContext('2d').drawImage(sizeImg, 0, 0, c.width, c.height);
+        const compressed = c.toDataURL('image/jpeg', 0.72);
+
+        processedImages[`${item.classIdx}_${item.attachIdx}`] = { data: compressed, fmt: 'JPEG', w: imgW, h: imgH };
+      });
+
+      await runWithConcurrency(imgTasks, 5);
 
       // Process each class section
       for (let i = 0; i < classDataWithAttachments.length; i++) {
         const classItem = classDataWithAttachments[i];
         const isFirst = i === 0;
 
-        // --- Step 1: render only the text block (no images) via html2canvas ---
-        const container = document.createElement('div');
-        container.style.cssText = 'width:700px;padding:20px;background:#fff;font-family:Arial,Tahoma,sans-serif;direction:ltr;';
+        renderClassText(classItem, isFirst);
 
-        let html = '';
-
-        if (isFirst) {
-          html += `
-            <div style="text-align:center;margin-bottom:20px;">
-              <h1 style="font-size:22px;margin-bottom:8px;">Class Report</h1>
-              <p style="font-size:11px;color:#666;">Generated on: ${new Date().toLocaleDateString()}</p>
-            </div>
-          `;
-        }
-
-        html += `
-          <div style="margin-bottom:15px;">
-            <h2 style="font-size:16px;border-bottom:2px solid #3498db;padding-bottom:6px;margin-bottom:12px;">${classItem.name}</h2>
-            <div style="font-size:12px;line-height:1.8;">
-              <div style="margin-bottom:8px;"><strong>Supervisor:</strong> ${supervisorName}</div>
-              <div style="margin-bottom:8px;"><strong>Name of Teachers:</strong> ${classItem.teacherNames}</div>
-              <div style="margin-bottom:8px;direction:auto;"><strong>Class Summary:</strong> <span style="unicode-bidi:embed;">${classItem.description || 'N/A'}</span></div>
-              <div style="margin-bottom:8px;"><strong>Total Students:</strong> ${classItem.totalStudents}</div>
-              ${classItem.attachments && classItem.attachments.length > 0 ? '<div style="margin-top:10px;font-size:12px;font-weight:bold;">Attendance Images:</div>' : ''}
-            </div>
-          </div>
-        `;
-
-        container.innerHTML = html;
-        container.style.position = 'absolute';
-        container.style.left = '-9999px';
-        document.body.appendChild(container);
-        await document.fonts.ready;
-
-        const textCanvas = await html2canvas(container, {
-          scale: 1.5,
-          useCORS: true,
-          logging: false,
-          backgroundColor: '#ffffff',
-        });
-
-        document.body.removeChild(container);
-
-        addCanvasToPdf(textCanvas);
-
-        // --- Step 2: add each attendance image directly to the PDF ---
         if (classItem.attachments && classItem.attachments.length > 0) {
-          const IMG_GAP = 3;
-          const IMG_GAP_V = 4;
-          const COLS = 2;
-          const slotW = (contentWidth - IMG_GAP * (COLS - 1)) / COLS;
-          const MAX_H_MM = 90;
-
           let col = 0;
           let rowMaxH = 0;
           let rowEntries = [];
@@ -340,18 +417,15 @@ const Reports = ({ isSuperAdmin = false }) => {
             rowMaxH = 0;
           };
 
-          const IMG_DPI = 96;
-          for (const attachment of classItem.attachments) {
-            const { w: natW, h: natH } = await getImageNaturalSize(attachment.data);
-            const scale = Math.min(slotW / natW, MAX_H_MM / natH);
-            const imgW = natW * scale;
-            const imgH = natH * scale;
-            const targetPxW = imgW / 25.4 * IMG_DPI;
-            const targetPxH = imgH / 25.4 * IMG_DPI;
-            const compressed = await compressImage(attachment.data, targetPxW, targetPxH);
+          for (let ai = 0; ai < classItem.attachments.length; ai++) {
+            const key = `${i}_${ai}`;
+            const processed = processedImages[key];
+            if (!processed) continue;
+
             const xPos = margin + col * (slotW + IMG_GAP);
-            rowEntries.push({ data: compressed, fmt: 'JPEG', x: xPos, w: imgW, h: imgH });
-            if (imgH > rowMaxH) rowMaxH = imgH;
+            rowEntries.push({ ...processed, x: xPos });
+            if (processed.h > rowMaxH) rowMaxH = processed.h;
+
             col++;
             if (col >= COLS) flushRow();
           }
@@ -391,15 +465,8 @@ const Reports = ({ isSuperAdmin = false }) => {
         return;
       }
 
-      // Fetch attachments for all classes sequentially to avoid rate limits
-      const classDataWithAttachments = [];
-      for (const classItem of classData) {
-        const attachments = await fetchAttachmentsForClass(classItem.attendanceIds);
-        classDataWithAttachments.push({
-          ...classItem,
-          attachments,
-        });
-      }
+      // Fetch attachments for all classes with controlled concurrency
+      const classDataWithAttachments = await fetchAllClassAttachments(classData);
 
       const base64ToUint8Array = (dataUri) => {
         const base64 = dataUri.split(',')[1];
@@ -426,6 +493,23 @@ const Reports = ({ isSuperAdmin = false }) => {
         img.src = dataUri;
       });
 
+      // Pre-process all image dimensions in parallel batches of 5
+      const allImgTasks = [];
+      for (let ci = 0; ci < classDataWithAttachments.length; ci++) {
+        const attachments = classDataWithAttachments[ci].attachments;
+        if (!attachments || attachments.length === 0) continue;
+        for (let ai = 0; ai < attachments.length; ai++) {
+          allImgTasks.push({ classIdx: ci, attachIdx: ai, dataUri: attachments[ai].data });
+        }
+      }
+
+      const imgDimMap = {};
+      const dimTasks = allImgTasks.map((item) => async () => {
+        const dims = await getImageDimensions(item.dataUri);
+        imgDimMap[`${item.classIdx}_${item.attachIdx}`] = dims;
+      });
+      await runWithConcurrency(dimTasks, 5);
+
       const children = [];
 
       children.push(
@@ -448,7 +532,9 @@ const Reports = ({ isSuperAdmin = false }) => {
         })
       );
 
-      for (const classItem of classDataWithAttachments) {
+      for (let ci = 0; ci < classDataWithAttachments.length; ci++) {
+        const classItem = classDataWithAttachments[ci];
+
         children.push(
           new Paragraph({
             text: classItem.name,
@@ -510,17 +596,18 @@ const Reports = ({ isSuperAdmin = false }) => {
             })
           );
 
-          for (const attachment of classItem.attachments) {
+          for (let ai = 0; ai < classItem.attachments.length; ai++) {
             try {
+              const attachment = classItem.attachments[ai];
               const imageData = base64ToUint8Array(attachment.data);
-              const { width: imgW, height: imgH } = await getImageDimensions(attachment.data);
+              const dims = imgDimMap[`${ci}_${ai}`] || { width: 480, height: 360 };
               children.push(
                 new Paragraph({
                   spacing: { after: 100 },
                   children: [
                     new ImageRun({
                       data: imageData,
-                      transformation: { width: imgW, height: imgH },
+                      transformation: { width: dims.width, height: dims.height },
                       type: 'png',
                     }),
                   ],
@@ -622,4 +709,4 @@ const Reports = ({ isSuperAdmin = false }) => {
   );
 };
 
-export default Reports;
+export default Reports2;
