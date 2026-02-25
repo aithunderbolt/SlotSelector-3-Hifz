@@ -16,6 +16,7 @@ const Reports2 = ({ isSuperAdmin = false }) => {
   const [generatingWord, setGeneratingWord] = useState(false);
   const [supervisorName, setSupervisorName] = useState('Farheen');
   const [reportFileName, setReportFileName] = useState('Hifz');
+  const [selectedClassIds, setSelectedClassIds] = useState(new Set());
 
   const fetchData = async () => {
     try {
@@ -160,6 +161,11 @@ const Reports2 = ({ isSuperAdmin = false }) => {
     return result;
   }, [classes, attendanceByClassId, slots.length, usersBySlotId]);
 
+  // Sync selectedClassIds whenever classData changes — all selected by default
+  useEffect(() => {
+    setSelectedClassIds(new Set(classData.map(c => c.id)));
+  }, [classData]);
+
   // Helper: run async tasks with controlled concurrency to avoid rate limits
   // while still being faster than fully sequential execution.
   const runWithConcurrency = async (tasks, concurrency = 3) => {
@@ -218,17 +224,35 @@ const Reports2 = ({ isSuperAdmin = false }) => {
     return runWithConcurrency(tasks, 2);
   };
 
+  const selectedClassData = classData.filter(c => selectedClassIds.has(c.id));
+
+  const toggleClassSelection = (id) => {
+    setSelectedClassIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedClassIds.size === classData.length) {
+      setSelectedClassIds(new Set());
+    } else {
+      setSelectedClassIds(new Set(classData.map(c => c.id)));
+    }
+  };
+
   const generatePDF = async () => {
     setGenerating(true);
     try {
-      if (classData.length === 0) {
-        alert('No classes with complete attendance found to generate report.');
+      if (selectedClassData.length === 0) {
+        alert('No classes selected to generate report.');
         setGenerating(false);
         return;
       }
 
-      // Fetch attachments for all classes with controlled concurrency
-      const classDataWithAttachments = await fetchAllClassAttachments(classData);
+      // Fetch attachments for selected classes with controlled concurrency
+      const classDataWithAttachments = await fetchAllClassAttachments(selectedClassData);
 
       // Create PDF
       const pdf = new jsPDF('p', 'mm', 'a4');
@@ -459,14 +483,14 @@ const Reports2 = ({ isSuperAdmin = false }) => {
   const generateWord = async () => {
     setGeneratingWord(true);
     try {
-      if (classData.length === 0) {
-        alert('No classes with complete attendance found to generate report.');
+      if (selectedClassData.length === 0) {
+        alert('No classes selected to generate report.');
         setGeneratingWord(false);
         return;
       }
 
-      // Fetch attachments for all classes with controlled concurrency
-      const classDataWithAttachments = await fetchAllClassAttachments(classData);
+      // Fetch attachments for selected classes with controlled concurrency
+      const classDataWithAttachments = await fetchAllClassAttachments(selectedClassData);
 
       const base64ToUint8Array = (dataUri) => {
         const base64 = dataUri.split(',')[1];
@@ -645,7 +669,7 @@ const Reports2 = ({ isSuperAdmin = false }) => {
         <div className="reports-actions">
           <button
             onClick={generatePDF}
-            disabled={generating || classData.length === 0}
+            disabled={generating || selectedClassData.length === 0}
             className="generate-pdf-btn"
           >
             {generating ? 'Generating PDF...' : 'Download PDF Report'}
@@ -653,7 +677,7 @@ const Reports2 = ({ isSuperAdmin = false }) => {
           {isSuperAdmin && (
             <button
               onClick={generateWord}
-              disabled={generatingWord || classData.length === 0}
+              disabled={generatingWord || selectedClassData.length === 0}
               className="generate-word-btn"
             >
               {generatingWord ? 'Generating Word...' : 'Download Word Report'}
@@ -669,7 +693,7 @@ const Reports2 = ({ isSuperAdmin = false }) => {
           This report includes classes that have attendance entered for all {slots.length} slots.
         </p>
         <p>
-          <strong>Classes included in report:</strong> {classData.length}
+          <strong>Eligible classes:</strong> {classData.length} &nbsp;|&nbsp; <strong>Selected:</strong> {selectedClassData.length}
         </p>
       </div>
 
@@ -679,10 +703,33 @@ const Reports2 = ({ isSuperAdmin = false }) => {
         </div>
       ) : (
         <div className="report-preview">
-          <h3>Report Preview</h3>
+          <div className="report-preview-header">
+            <h3>Report Preview</h3>
+            <label className="select-all-toggle">
+              <input
+                type="checkbox"
+                checked={selectedClassIds.size === classData.length}
+                onChange={toggleSelectAll}
+              />
+              {selectedClassIds.size === classData.length ? 'Deselect All' : 'Select All'}
+            </label>
+          </div>
           {classData.map((classItem, index) => (
-            <div key={index} className="class-preview-card">
-              <h4>{classItem.name}</h4>
+            <div
+              key={index}
+              className={`class-preview-card ${selectedClassIds.has(classItem.id) ? '' : 'class-preview-card--deselected'}`}
+              onClick={() => toggleClassSelection(classItem.id)}
+            >
+              <div className="class-preview-card-header">
+                <input
+                  type="checkbox"
+                  className="class-checkbox"
+                  checked={selectedClassIds.has(classItem.id)}
+                  onChange={() => toggleClassSelection(classItem.id)}
+                  onClick={(e) => e.stopPropagation()}
+                />
+                <h4>{classItem.name}</h4>
+              </div>
               <div className="preview-details">
                 <div className="preview-row">
                   <span className="preview-label">Supervisor:</span>
