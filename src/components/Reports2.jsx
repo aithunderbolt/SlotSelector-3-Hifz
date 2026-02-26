@@ -6,6 +6,29 @@ import { Document, Packer, Paragraph, TextRun, HeadingLevel, ImageRun, BorderSty
 import { saveAs } from 'file-saver';
 import './Reports2.css';
 
+const PDF_FONT_PRESETS = {
+  small: { body: 10, title: 18, className: 14, date: 9 },
+  default: { body: 12, title: 22, className: 16, date: 11 },
+  medium: { body: 14, title: 26, className: 18, date: 13 },
+  large: { body: 16, title: 30, className: 20, date: 15 },
+  xlarge: { body: 18, title: 34, className: 22, date: 17 },
+  '2xl': { body: 20, title: 38, className: 24, date: 19 },
+  '3xl': { body: 22, title: 42, className: 26, date: 21 },
+  '4xl': { body: 24, title: 46, className: 28, date: 23 },
+  '5xl': { body: 26, title: 50, className: 30, date: 25 },
+};
+const WORD_FONT_PRESETS = {
+  small: { body: 18, date: 16 },
+  default: { body: 22, date: 20 },
+  medium: { body: 26, date: 24 },
+  large: { body: 30, date: 28 },
+  xlarge: { body: 34, date: 32 },
+  '2xl': { body: 38, date: 36 },
+  '3xl': { body: 42, date: 40 },
+  '4xl': { body: 46, date: 44 },
+  '5xl': { body: 50, date: 48 },
+};
+
 const Reports2 = ({ isSuperAdmin = false }) => {
   const [classes, setClasses] = useState([]);
   const [attendanceRecords, setAttendanceRecords] = useState([]);
@@ -18,6 +41,8 @@ const Reports2 = ({ isSuperAdmin = false }) => {
   const [supervisorName, setSupervisorName] = useState('Farheen');
   const [reportFileName, setReportFileName] = useState('Hifz');
   const [selectedClassIds, setSelectedClassIds] = useState(new Set());
+  const [pdfFontSize, setPdfFontSize] = useState('default');
+  const [wordFontSize, setWordFontSize] = useState('default');
 
   const fetchData = async () => {
     try {
@@ -293,26 +318,28 @@ const Reports2 = ({ isSuperAdmin = false }) => {
 
         let html = '';
 
+        const pf = PDF_FONT_PRESETS[pdfFontSize] || PDF_FONT_PRESETS.default;
+
         if (isFirst) {
           html += `
             <div style="text-align:center;margin-bottom:8px;">
-              <div style="font-size:22px;font-weight:bold;">Class Report</div>
-              <div style="font-size:11px;color:#666;margin-top:4px;">Generated on: ${new Date().toLocaleDateString()}</div>
+              <div style="font-size:${pf.title}px;font-weight:bold;">Class Report</div>
+              <div style="font-size:${pf.date}px;color:#666;margin-top:4px;">Generated on: ${new Date().toLocaleDateString()}</div>
             </div>
           `;
         }
 
         html += `
-          <div style="font-size:16px;font-weight:bold;margin-bottom:2px;">${classItem.name}</div>
+          <div style="font-size:${pf.className}px;font-weight:bold;margin-bottom:2px;">${classItem.name}</div>
           <div style="border-bottom:2px solid #3498db;margin-bottom:8px;"></div>
-          <div style="font-size:12px;margin-bottom:5px;"><b>Supervisor: </b>${supervisorName}</div>
-          <div style="font-size:12px;margin-bottom:5px;"><b>Name of Teachers: </b>${classItem.teacherNames}</div>
-          <div dir="auto" style="font-size:12px;margin-bottom:5px;"><b>Class Summary: </b>${classItem.description || 'N/A'}</div>
-          <div style="font-size:12px;margin-bottom:5px;"><b>Total Students: </b>${classItem.totalStudents}</div>
+          <div style="font-size:${pf.body}px;margin-bottom:5px;"><b>Supervisor: </b>${supervisorName}</div>
+          <div style="font-size:${pf.body}px;margin-bottom:5px;"><b>Name of Teachers: </b>${classItem.teacherNames}</div>
+          <div dir="auto" style="font-size:${pf.body}px;margin-bottom:5px;"><b>Class Summary: </b>${classItem.description || 'N/A'}</div>
+          <div style="font-size:${pf.body}px;margin-bottom:5px;"><b>Total Students: </b>${classItem.totalStudents}</div>
         `;
 
         if (classItem.attachments && classItem.attachments.length > 0) {
-          html += `<div style="font-size:12px;font-weight:bold;margin-top:6px;">Attendance Images:</div>`;
+          html += `<div style="font-size:${pf.body}px;font-weight:bold;margin-top:6px;">Attendance Images:</div>`;
         }
 
         container.innerHTML = html;
@@ -519,7 +546,7 @@ const Reports2 = ({ isSuperAdmin = false }) => {
           children: [
             new TextRun({
               text: `Generated on: ${new Date().toLocaleDateString()}`,
-              size: 20,
+              size: (WORD_FONT_PRESETS[wordFontSize] || WORD_FONT_PRESETS.default).date,
               color: '666666',
             }),
           ],
@@ -544,8 +571,8 @@ const Reports2 = ({ isSuperAdmin = false }) => {
           new Paragraph({
             spacing: { after: 80 },
             children: [
-              new TextRun({ text: 'Supervisor: ', bold: true, size: 22 }),
-              new TextRun({ text: supervisorName, size: 22 }),
+              new TextRun({ text: 'Supervisor: ', bold: true, size: (WORD_FONT_PRESETS[wordFontSize] || WORD_FONT_PRESETS.default).body }),
+              new TextRun({ text: supervisorName, size: (WORD_FONT_PRESETS[wordFontSize] || WORD_FONT_PRESETS.default).body }),
             ],
           })
         );
@@ -554,8 +581,8 @@ const Reports2 = ({ isSuperAdmin = false }) => {
           new Paragraph({
             spacing: { after: 80 },
             children: [
-              new TextRun({ text: 'Name of Teachers: ', bold: true, size: 22 }),
-              new TextRun({ text: classItem.teacherNames, size: 22 }),
+              new TextRun({ text: 'Name of Teachers: ', bold: true, size: (WORD_FONT_PRESETS[wordFontSize] || WORD_FONT_PRESETS.default).body }),
+              new TextRun({ text: classItem.teacherNames, size: (WORD_FONT_PRESETS[wordFontSize] || WORD_FONT_PRESETS.default).body }),
             ],
           })
         );
@@ -564,8 +591,8 @@ const Reports2 = ({ isSuperAdmin = false }) => {
           new Paragraph({
             spacing: { after: 80 },
             children: [
-              new TextRun({ text: 'Class Summary: ', bold: true, size: 22 }),
-              new TextRun({ text: classItem.description || 'N/A', size: 22 }),
+              new TextRun({ text: 'Class Summary: ', bold: true, size: (WORD_FONT_PRESETS[wordFontSize] || WORD_FONT_PRESETS.default).body }),
+              new TextRun({ text: classItem.description || 'N/A', size: (WORD_FONT_PRESETS[wordFontSize] || WORD_FONT_PRESETS.default).body }),
             ],
           })
         );
@@ -574,8 +601,8 @@ const Reports2 = ({ isSuperAdmin = false }) => {
           new Paragraph({
             spacing: { after: 150 },
             children: [
-              new TextRun({ text: 'Total Students: ', bold: true, size: 22 }),
-              new TextRun({ text: String(classItem.totalStudents), size: 22 }),
+              new TextRun({ text: 'Total Students: ', bold: true, size: (WORD_FONT_PRESETS[wordFontSize] || WORD_FONT_PRESETS.default).body }),
+              new TextRun({ text: String(classItem.totalStudents), size: (WORD_FONT_PRESETS[wordFontSize] || WORD_FONT_PRESETS.default).body }),
             ],
           })
         );
@@ -585,7 +612,7 @@ const Reports2 = ({ isSuperAdmin = false }) => {
             new Paragraph({
               spacing: { before: 100, after: 80 },
               children: [
-                new TextRun({ text: 'Attendance Images:', bold: true, size: 22 }),
+                new TextRun({ text: 'Attendance Images:', bold: true, size: (WORD_FONT_PRESETS[wordFontSize] || WORD_FONT_PRESETS.default).body }),
               ],
             })
           );
@@ -637,6 +664,17 @@ const Reports2 = ({ isSuperAdmin = false }) => {
       <div className="reports-header">
         <h2>Reports</h2>
         <div className="reports-actions">
+          <select value={pdfFontSize} onChange={(e) => setPdfFontSize(e.target.value)} className="font-size-select">
+            <option value="small">PDF: Small</option>
+            <option value="default">PDF: Default</option>
+            <option value="medium">PDF: Medium</option>
+            <option value="large">PDF: Large</option>
+            <option value="xlarge">PDF: Extra Large</option>
+            <option value="2xl">PDF: 2XL</option>
+            <option value="3xl">PDF: 3XL</option>
+            <option value="4xl">PDF: 4XL</option>
+            <option value="5xl">PDF: 5XL</option>
+          </select>
           <button
             onClick={generatePDF}
             disabled={generating || selectedClassData.length === 0}
@@ -645,13 +683,26 @@ const Reports2 = ({ isSuperAdmin = false }) => {
             {generating ? 'Generating PDF...' : 'Download PDF Report'}
           </button>
           {isSuperAdmin && (
-            <button
-              onClick={generateWord}
-              disabled={generatingWord || selectedClassData.length === 0}
-              className="generate-word-btn"
-            >
-              {generatingWord ? 'Generating Word...' : 'Download Word Report'}
-            </button>
+            <>
+              <select value={wordFontSize} onChange={(e) => setWordFontSize(e.target.value)} className="font-size-select">
+                <option value="small">Word: Small</option>
+                <option value="default">Word: Default</option>
+                <option value="medium">Word: Medium</option>
+                <option value="large">Word: Large</option>
+                <option value="xlarge">Word: Extra Large</option>
+                <option value="2xl">Word: 2XL</option>
+                <option value="3xl">Word: 3XL</option>
+                <option value="4xl">Word: 4XL</option>
+                <option value="5xl">Word: 5XL</option>
+              </select>
+              <button
+                onClick={generateWord}
+                disabled={generatingWord || selectedClassData.length === 0}
+                className="generate-word-btn"
+              >
+                {generatingWord ? 'Generating Word...' : 'Download Word Report'}
+              </button>
+            </>
           )}
         </div>
       </div>
