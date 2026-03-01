@@ -57,7 +57,7 @@ const Reports = ({ isSuperAdmin = false }) => {
           fields: 'id,name,description',
         }),
         pb.collection('attendance').getFullList({
-          fields: 'id,class_id,slot_id,total_students',
+          fields: 'id,class_id,slot_id,total_students,students_absent',
         }),
         pb.collection('users').getFullList({
           filter: 'role = "slot_admin"',
@@ -145,6 +145,11 @@ const Reports = ({ isSuperAdmin = false }) => {
           0
         );
 
+        const studentsAbsent = classAttendance.reduce(
+          (sum, record) => sum + (record.students_absent || 0),
+          0
+        );
+
         // Get unique slot IDs that have attendance for this class
         const slotIdsWithAttendance = new Set(
           classAttendance.map((record) => record.slot_id)
@@ -168,6 +173,7 @@ const Reports = ({ isSuperAdmin = false }) => {
           name: classItem.name,
           description: classItem.description || '',
           totalStudents: totalStudents,
+          studentsAbsent: studentsAbsent,
           teacherNames: teacherNames.join(', ') || 'N/A',
           attendanceCount: attendanceCount,
           attendanceIds: attendanceIds,
@@ -342,6 +348,7 @@ const Reports = ({ isSuperAdmin = false }) => {
               <div style="margin-bottom:8px;"><strong>Name of Teachers:</strong> ${classItem.teacherNames}</div>
               <div style="margin-bottom:8px;direction:auto;"><strong>Class Summary:</strong> <span style="unicode-bidi:embed;">${classItem.description || 'N/A'}</span></div>
               <div style="margin-bottom:8px;"><strong>Total Students:</strong> ${classItem.totalStudents}</div>
+              <div style="margin-bottom:8px;"><strong>Students Absent:</strong> ${classItem.studentsAbsent}</div>
               ${classItem.attachments && classItem.attachments.length > 0 ? `<div style="margin-top:10px;font-size:${pf.body}px;font-weight:bold;">Attendance Images:</div>` : ''}
             </div>
           </div>
@@ -543,10 +550,20 @@ const Reports = ({ isSuperAdmin = false }) => {
 
         children.push(
           new Paragraph({
-            spacing: { after: 150 },
+            spacing: { after: 80 },
             children: [
               new TextRun({ text: 'Total Students: ', bold: true, size: (WORD_FONT_PRESETS[wordFontSize] || WORD_FONT_PRESETS.default).body }),
               new TextRun({ text: String(classItem.totalStudents), size: (WORD_FONT_PRESETS[wordFontSize] || WORD_FONT_PRESETS.default).body }),
+            ],
+          })
+        );
+
+        children.push(
+          new Paragraph({
+            spacing: { after: 150 },
+            children: [
+              new TextRun({ text: 'Students Absent: ', bold: true, size: (WORD_FONT_PRESETS[wordFontSize] || WORD_FONT_PRESETS.default).body }),
+              new TextRun({ text: String(classItem.studentsAbsent), size: (WORD_FONT_PRESETS[wordFontSize] || WORD_FONT_PRESETS.default).body }),
             ],
           })
         );
@@ -710,6 +727,10 @@ const Reports = ({ isSuperAdmin = false }) => {
                 <div className="preview-row">
                   <span className="preview-label">Total Students:</span>
                   <span className="preview-value">{classItem.totalStudents}</span>
+                </div>
+                <div className="preview-row">
+                  <span className="preview-label">Students Absent:</span>
+                  <span className="preview-value">{classItem.studentsAbsent}</span>
                 </div>
               </div>
             </div>
