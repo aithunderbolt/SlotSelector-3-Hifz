@@ -346,7 +346,7 @@ const Reports = ({ isSuperAdmin = false }) => {
             <div style="font-size:${pf.body}px;line-height:1.8;">
               <div style="margin-bottom:8px;"><strong>Supervisor:</strong> ${supervisorName}</div>
               <div style="margin-bottom:8px;"><strong>Name of Teachers:</strong> ${classItem.teacherNames}</div>
-              <div style="margin-bottom:8px;direction:auto;white-space:pre-line;"><strong>Class Summary:</strong> <span style="unicode-bidi:embed;">${classItem.description || 'N/A'}</span></div>
+              <div style="margin-bottom:8px;direction:auto;white-space:pre-line;"><strong>Class Summary:</strong><br/><span style="unicode-bidi:embed;">${classItem.description || 'N/A'}</span></div>
               <div style="margin-bottom:8px;"><strong>Total Students:</strong> ${classItem.totalStudents}</div>
               <div style="margin-bottom:8px;"><strong>Students Absent:</strong> ${classItem.studentsAbsent}</div>
               ${classItem.attachments && classItem.attachments.length > 0 ? `<div style="margin-top:10px;font-size:${pf.body}px;font-weight:bold;">Attendance Images:</div>` : ''}
@@ -525,7 +525,8 @@ const Reports = ({ isSuperAdmin = false }) => {
               new TextRun({ text: 'Supervisor: ', bold: true, size: (WORD_FONT_PRESETS[wordFontSize] || WORD_FONT_PRESETS.default).body }),
               new TextRun({ text: supervisorName, size: (WORD_FONT_PRESETS[wordFontSize] || WORD_FONT_PRESETS.default).body }),
             ],
-          })
+          }),
+          new Paragraph({ spacing: { after: 0 } })
         );
 
         children.push(
@@ -535,7 +536,8 @@ const Reports = ({ isSuperAdmin = false }) => {
               new TextRun({ text: 'Name of Teachers: ', bold: true, size: (WORD_FONT_PRESETS[wordFontSize] || WORD_FONT_PRESETS.default).body }),
               new TextRun({ text: classItem.teacherNames, size: (WORD_FONT_PRESETS[wordFontSize] || WORD_FONT_PRESETS.default).body }),
             ],
-          })
+          }),
+          new Paragraph({ spacing: { after: 0 } })
         );
 
         // Class Summary — split on newlines to preserve line breaks in Word
@@ -544,14 +546,14 @@ const Reports = ({ isSuperAdmin = false }) => {
           new TextRun({ text: 'Class Summary: ', bold: true, size: (WORD_FONT_PRESETS[wordFontSize] || WORD_FONT_PRESETS.default).body }),
         ];
         summaryLines.forEach((line, idx) => {
-          if (idx > 0) summaryRuns.push(new TextRun({ break: 1, text: '', size: (WORD_FONT_PRESETS[wordFontSize] || WORD_FONT_PRESETS.default).body }));
-          summaryRuns.push(new TextRun({ text: line, size: (WORD_FONT_PRESETS[wordFontSize] || WORD_FONT_PRESETS.default).body }));
+          summaryRuns.push(new TextRun({ break: 1, text: line, size: (WORD_FONT_PRESETS[wordFontSize] || WORD_FONT_PRESETS.default).body }));
         });
         children.push(
           new Paragraph({
             spacing: { after: 80 },
             children: summaryRuns,
-          })
+          }),
+          new Paragraph({ spacing: { after: 0 } })
         );
 
         children.push(
@@ -726,7 +728,7 @@ const Reports = ({ isSuperAdmin = false }) => {
                   <span className="preview-label">Name of Teachers:</span>
                   <span className="preview-value">{classItem.teacherNames}</span>
                 </div>
-                <div className="preview-row">
+                <div className="preview-row" style={{ flexDirection: 'column', alignItems: 'flex-start' }}>
                   <span className="preview-label">Class Summary:</span>
                   <span className="preview-value" style={{ whiteSpace: 'pre-line' }}>{classItem.description || 'N/A'}</span>
                 </div>
