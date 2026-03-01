@@ -340,7 +340,7 @@ const Reports2 = ({ isSuperAdmin = false }) => {
           <div style="border-bottom:2px solid #3498db;margin-bottom:8px;"></div>
           <div style="font-size:${pf.body}px;margin-bottom:5px;"><b>Supervisor: </b>${supervisorName}</div>
           <div style="font-size:${pf.body}px;margin-bottom:5px;"><b>Name of Teachers: </b>${classItem.teacherNames}</div>
-          <div dir="auto" style="font-size:${pf.body}px;margin-bottom:5px;"><b>Class Summary: </b>${classItem.description || 'N/A'}</div>
+          <div dir="auto" style="font-size:${pf.body}px;margin-bottom:5px;white-space:pre-line;"><b>Class Summary: </b>${classItem.description || 'N/A'}</div>
           <div style="font-size:${pf.body}px;margin-bottom:5px;"><b>Total Students: </b>${classItem.totalStudents}</div>
           <div style="font-size:${pf.body}px;margin-bottom:5px;"><b>Students Absent: </b>${classItem.studentsAbsent}</div>
         `;
@@ -594,13 +594,19 @@ const Reports2 = ({ isSuperAdmin = false }) => {
           })
         );
 
+        // Class Summary — split on newlines to preserve line breaks in Word
+        const summaryLines = (classItem.description || 'N/A').split('\n');
+        const summaryRuns = [
+          new TextRun({ text: 'Class Summary: ', bold: true, size: (WORD_FONT_PRESETS[wordFontSize] || WORD_FONT_PRESETS.default).body }),
+        ];
+        summaryLines.forEach((line, idx) => {
+          if (idx > 0) summaryRuns.push(new TextRun({ break: 1, text: '', size: (WORD_FONT_PRESETS[wordFontSize] || WORD_FONT_PRESETS.default).body }));
+          summaryRuns.push(new TextRun({ text: line, size: (WORD_FONT_PRESETS[wordFontSize] || WORD_FONT_PRESETS.default).body }));
+        });
         children.push(
           new Paragraph({
             spacing: { after: 80 },
-            children: [
-              new TextRun({ text: 'Class Summary: ', bold: true, size: (WORD_FONT_PRESETS[wordFontSize] || WORD_FONT_PRESETS.default).body }),
-              new TextRun({ text: classItem.description || 'N/A', size: (WORD_FONT_PRESETS[wordFontSize] || WORD_FONT_PRESETS.default).body }),
-            ],
+            children: summaryRuns,
           })
         );
 
@@ -779,7 +785,7 @@ const Reports2 = ({ isSuperAdmin = false }) => {
                 </div>
                 <div className="preview-row">
                   <span className="preview-label">Class Summary:</span>
-                  <span className="preview-value">{classItem.description || 'N/A'}</span>
+                  <span className="preview-value" style={{ whiteSpace: 'pre-line' }}>{classItem.description || 'N/A'}</span>
                 </div>
                 <div className="preview-row">
                   <span className="preview-label">Total Students:</span>
