@@ -137,48 +137,45 @@ const Reports2 = ({ isSuperAdmin = false }) => {
       const classAttendance = attendanceByClassId[classItem.id] || [];
       const attendanceCount = classAttendance.length;
 
-      // Only include classes with attendance >= total slots
-      if (attendanceCount >= slots.length) {
-        // Calculate total students from attendance records
-        const totalStudents = classAttendance.reduce(
-          (sum, record) => sum + record.total_students,
-          0
-        );
+      // Calculate total students from attendance records
+      const totalStudents = classAttendance.reduce(
+        (sum, record) => sum + record.total_students,
+        0
+      );
 
-        const studentsAbsent = classAttendance.reduce(
-          (sum, record) => sum + (record.students_absent || 0),
-          0
-        );
+      const studentsAbsent = classAttendance.reduce(
+        (sum, record) => sum + (record.students_absent || 0),
+        0
+      );
 
-        // Get unique slot IDs that have attendance for this class
-        const slotIdsWithAttendance = new Set(
-          classAttendance.map((record) => record.slot_id)
-        );
+      // Get unique slot IDs that have attendance for this class
+      const slotIdsWithAttendance = new Set(
+        classAttendance.map((record) => record.slot_id)
+      );
 
-        // Get teacher names using lookup map - O(n) instead of O(n*m)
-        const teacherNames = [];
-        slotIdsWithAttendance.forEach(slotId => {
-          const slotUsers = usersBySlotId[slotId] || [];
-          slotUsers.forEach(user => {
-            const name = user.name || user.username;
-            if (name) teacherNames.push(name);
-          });
+      // Get teacher names using lookup map - O(n) instead of O(n*m)
+      const teacherNames = [];
+      slotIdsWithAttendance.forEach(slotId => {
+        const slotUsers = usersBySlotId[slotId] || [];
+        slotUsers.forEach(user => {
+          const name = user.name || user.username;
+          if (name) teacherNames.push(name);
         });
+      });
 
-        // Get attendance record IDs for this class (for lazy loading attachments)
-        const attendanceIds = classAttendance.map(record => record.id);
+      // Get attendance record IDs for this class (for lazy loading attachments)
+      const attendanceIds = classAttendance.map(record => record.id);
 
-        result.push({
-          id: classItem.id,
-          name: classItem.name,
-          description: classItem.description || '',
-          totalStudents: totalStudents,
-          studentsAbsent: studentsAbsent,
-          teacherNames: teacherNames.join(', ') || 'N/A',
-          attendanceCount: attendanceCount,
-          attendanceIds: attendanceIds,
-        });
-      }
+      result.push({
+        id: classItem.id,
+        name: classItem.name,
+        description: classItem.description || '',
+        totalStudents: totalStudents,
+        studentsAbsent: studentsAbsent,
+        teacherNames: teacherNames.join(', ') || 'N/A',
+        attendanceCount: attendanceCount,
+        attendanceIds: attendanceIds,
+      });
     });
 
     // Sort classes by name (TilawahClass1, TilawahClass2, etc.)
@@ -191,7 +188,7 @@ const Reports2 = ({ isSuperAdmin = false }) => {
     });
 
     return result;
-  }, [classes, attendanceByClassId, slots.length, usersBySlotId]);
+  }, [classes, attendanceByClassId, usersBySlotId]);
 
   // Sync selectedClassIds whenever classData changes — all selected by default
   useEffect(() => {
@@ -736,16 +733,16 @@ const Reports2 = ({ isSuperAdmin = false }) => {
 
       <div className="report-info">
         <p>
-          This report includes classes that have attendance entered for all {slots.length} slots.
+          This report includes all classes, whether or not attendance has been entered for all {slots.length} slots.
         </p>
         <p>
-          <strong>Eligible classes:</strong> {classData.length} &nbsp;|&nbsp; <strong>Selected:</strong> {selectedClassData.length}
+          <strong>Classes:</strong> {classData.length} &nbsp;|&nbsp; <strong>Selected:</strong> {selectedClassData.length}
         </p>
       </div>
 
       {classData.length === 0 ? (
         <div className="no-data">
-          No classes with complete attendance found. Ensure all slots have entered attendance for each class.
+          No classes found.
         </div>
       ) : (
         <div className="report-preview">
@@ -775,6 +772,10 @@ const Reports2 = ({ isSuperAdmin = false }) => {
                   onClick={(e) => e.stopPropagation()}
                 />
                 <h4>{classItem.name}</h4>
+              </div>
+              <div className="preview-row">
+                <span className="preview-label">Attendance Entered:</span>
+                <span className="preview-value">{classItem.attendanceCount} of {slots.length} slots</span>
               </div>
               <div className="preview-details">
                 <div className="preview-row">
